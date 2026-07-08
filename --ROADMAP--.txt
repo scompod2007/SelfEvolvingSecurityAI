@@ -1,0 +1,211 @@
+-------------TOTAL STEPS START-------------
+Phase 1 — Telemetry Collection
+
+Goal: Collect high-quality system events.
+
+Database
+Process Monitor
+File Monitor
+Registry Monitor
+Network Monitor
+Telemetry Manager
+Filter System
+
+Phase 2 — Event Processing
+
+Goal: Clean and enrich telemetry before AI sees it.
+
+Duplicate Filter
+Noise Reduction
+Whitelist
+Severity Engine
+Confidence Engine
+Correlation ID
+Event Normalization
+Event Tagging
+Statistics
+
+Phase 3 — Correlation Engine
+
+Goal: Connect related events into attack chains.
+
+Time Correlation
+Process Correlation
+Parent–Child Correlation
+File Correlation
+Network Correlation
+Registry Correlation
+User Session Correlation
+Multi-Event Timeline
+
+Phase 4 — Feature Extraction
+
+Goal: Convert events into AI features.
+
+Process Features
+File Features
+Registry Features
+Network Features
+Behavioral Features
+Statistical Features
+Temporal Features
+Graph Features
+
+Phase 5 — AI Detection Engine
+
+Goal: Detect known and unknown attacks.
+
+Rule Engine
+ML Engine
+Anomaly Detection
+Behavior Detection
+Risk Scoring
+Threat Classification
+Confidence Calculation
+
+Phase 6 — Threat Intelligence
+
+Goal: Add external knowledge.
+
+MITRE ATT&CK Mapping
+IOC Matching
+Reputation Checking
+Hash Intelligence
+IP Intelligence
+Domain Intelligence
+
+Phase 7 — Response Engine
+
+Goal: Take action against threats.
+
+Alerting
+Kill Process
+Block IP
+Quarantine File
+Registry Rollback
+Network Isolation
+Response Logging
+
+Phase 8 — Self-Evolution 
+
+Goal: Improve automatically from validated attacks.
+
+Feedback Collection
+Attack Validation
+Pattern Learning
+Rule Generation
+Rule Testing
+Sandbox Validation
+Rule Deployment
+Version Control
+Rollback System
+
+Phase 9 — Dashboard & Visualization
+
+Goal: Make the system understandable.
+
+Live Dashboard
+Event Viewer
+Attack Timeline
+Threat Graph
+Statistics
+AI Decisions
+Evolution History
+Reports
+-------------TOTAL STEPS END-------------
+
+-------------SIMPLE ROADMAP START--------------
+Self-Evolving Security AI Roadmap
+
+Phase 1 - Telemetry Collection
+├── Database
+├── Process Monitor
+├── File Monitor
+├── Registry Monitor
+├── Network Monitor
+├── Telemetry Manager
+└── Filter System
+
+Filter System
+├── Part 1 - Configuration Layer
+│   ├── 1.1 filter_config.py
+│   └── 1.2 whitelist.py
+│       ├── 1.2A Trusted Processes
+│       ├── 1.2B Publishers, Folders, Registry, IPs
+│       ├── 1.2C Extensions, Services, Ports, Hashes
+│       └── 1.2D Runtime APIs (Optional)
+│
+├── Part 2 - Core Filter Engine
+│   ├── 2.1 Imports & Base Classes
+│   ├── 2.2 File Filter
+│   ├── 2.3 Process Filter
+│   ├── 2.4 Network Filter
+│   ├── 2.5 Registry Filter
+│   ├── 2.6 Pattern Filter
+│   ├── 2.7 Duplicate Detection
+│   ├── 2.8 Severity Metadata
+│   ├── 2.9 Confidence Metadata
+│   ├── 2.10 Correlation ID
+│   ├── 2.11 Statistics
+│   └── 2.12 Filter Dispatcher
+│
+├── Part 3 - Duplicate Engine
+├── Part 4 - Statistics Engine
+├── Part 5 - Severity Engine
+├── Part 6 - Confidence Engine
+├── Part 7 - Correlation Engine
+├── Part 8 - Event Normalizer
+├── Part 9 - Rule Loader
+└── Part 10 - Collector Integration
+
+Phase 2 - Event Processing
+├── Event Pipeline
+├── Feature Extraction
+├── Event Tagging
+├── Event Correlation
+└── Data Preparation
+
+Phase 3 - AI Detection Engine
+├── Rule Engine
+├── Behavior Detection
+├── Anomaly Detection
+├── Risk Scoring
+└── Threat Classification
+
+Phase 4 - Threat Intelligence
+├── IOC Matching
+├── MITRE ATT&CK Mapping
+├── Reputation Engine
+└── Threat Feeds
+
+Phase 5 - Response Engine
+├── Alerting
+├── Process Kill
+├── File Quarantine
+├── Network Blocking
+└── Registry Rollback
+
+Phase 6 - Self-Evolution
+├── Feedback Collection
+├── Pattern Learning
+├── Rule Generation
+├── Rule Validation
+├── Safe Deployment
+└── Rollback
+
+Phase 7 - Dashboard
+├── Live Events
+├── Timeline
+├── Threat Graph
+├── Statistics
+└── Reports
+
+Phase 8 - Enterprise Features
+├── REST API
+├── Web Dashboard
+├── Plugin System
+├── Authentication
+├── Audit Logs
+├── Backup
+└── Multi-Agent Support
+-------------SIMPLE ROADMAP END--------------
