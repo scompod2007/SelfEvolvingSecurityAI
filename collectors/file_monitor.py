@@ -46,7 +46,7 @@ class FileMonitor(FileSystemEventHandler):
         self.running = True
 
     # -------------------------------------------------
-    # Return current username
+    # Return current username.
     # -------------------------------------------------
 
     def get_user_name(self):
