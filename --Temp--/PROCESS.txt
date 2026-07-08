@@ -1,0 +1,28 @@
+whitelist.py
+
+Part 1.2A ✅
+------------
+Trusted Processes
+Trusted Process Paths
+
+Part 1.2B
+------------
+Trusted Publishers
+Trusted Folders
+Trusted Registry Keys
+Trusted IPs
+Trusted Networks
+
+Part 1.2C
+------------
+Trusted Extensions
+Trusted Services
+Trusted Ports
+Trusted Hashes
+
+Part 1.2D
+------------
+Lookup APIs
+Runtime Add/Remove
+Statistics
+JSON/YAML Loader
