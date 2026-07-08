@@ -1,0 +1,72 @@
+2026-07-08 16:56:32 [INFO] telemetry_manager: ============================================================
+2026-07-08 16:56:32 [INFO] telemetry_manager: Self-Evolving Security AI - Telemetry Manager starting up.
+2026-07-08 16:56:32 [INFO] telemetry_manager: ============================================================
+2026-07-08 16:56:32 [INFO] telemetry_manager: Configuration loaded: {'process_monitor': True, 'file_monitor': True, 'registry_monitor': True, 'network_monitor': True, 'process_interval': 2, 'network_interval': 1, 'registry_interval': 2, 'file_interval': 1, 'health_check_interval': 5, 'stats_refresh_interval': 10, 'file_watch_path': None}
+2026-07-08 16:56:32 [INFO] telemetry_manager: Process monitor initialized.
+2026-07-08 16:56:32 [INFO] telemetry_manager: File monitor initialized.
+2026-07-08 16:56:32 [INFO] telemetry_manager: Registry monitor initialized.
+2026-07-08 16:56:32 [INFO] telemetry_manager: Network monitor initialized.
+2026-07-08 16:56:32 [INFO] telemetry_manager: Process monitor started.
+2026-07-08 16:56:32 [INFO] telemetry_manager: File monitor started.
+2026-07-08 16:56:33 [INFO] telemetry_manager: Registry monitor started.
+2026-07-08 16:56:33 [INFO] telemetry_manager: Network monitor started.
+2026-07-08 16:56:33 [INFO] telemetry_manager: Health monitor started (interval=5s).
+2026-07-08 16:56:33 [INFO] telemetry_manager: Telemetry Manager running. Press Ctrl+C to stop.
+2026-07-08 16:56:48 [INFO] telemetry_manager: Shutdown requested (Ctrl+C).
+2026-07-08 16:56:48 [INFO] telemetry_manager: Shutting down Telemetry Manager...
+2026-07-08 16:56:48 [INFO] telemetry_manager: Health monitor stopped.
+2026-07-08 16:58:01 [INFO] telemetry_manager: ============================================================
+2026-07-08 16:58:01 [INFO] telemetry_manager: Self-Evolving Security AI - Telemetry Manager starting up.
+2026-07-08 16:58:01 [INFO] telemetry_manager: ============================================================
+2026-07-08 16:58:01 [INFO] telemetry_manager: Configuration loaded: {'process_monitor': True, 'file_monitor': True, 'registry_monitor': True, 'network_monitor': True, 'process_interval': 2, 'network_interval': 1, 'registry_interval': 2, 'file_interval': 1, 'health_check_interval': 5, 'stats_refresh_interval': 10, 'file_watch_path': None}
+2026-07-08 16:58:01 [INFO] telemetry_manager: Process monitor initialized.
+2026-07-08 16:58:01 [INFO] telemetry_manager: File monitor initialized.
+2026-07-08 16:58:01 [INFO] telemetry_manager: Registry monitor initialized.
+2026-07-08 16:58:01 [INFO] telemetry_manager: Network monitor initialized.
+2026-07-08 16:58:01 [INFO] telemetry_manager: Process monitor started.
+2026-07-08 16:58:01 [INFO] telemetry_manager: File monitor started.
+2026-07-08 16:58:01 [INFO] telemetry_manager: Registry monitor started.
+2026-07-08 16:58:01 [INFO] telemetry_manager: Network monitor started.
+2026-07-08 16:58:01 [INFO] telemetry_manager: Health monitor started (interval=5s).
+2026-07-08 16:58:01 [INFO] telemetry_manager: Telemetry Manager running. Press Ctrl+C to stop.
+2026-07-08 16:58:03 [INFO] telemetry_manager: Shutdown requested (Ctrl+C).
+2026-07-08 16:58:03 [INFO] telemetry_manager: Shutting down Telemetry Manager...
+2026-07-08 16:58:03 [INFO] telemetry_manager: Health monitor stopped.
+2026-07-08 17:20:43 [INFO] telemetry_manager: ============================================================
+2026-07-08 17:20:43 [INFO] telemetry_manager: Self-Evolving Security AI - Telemetry Manager starting up.
+2026-07-08 17:20:43 [INFO] telemetry_manager: ============================================================
+2026-07-08 17:20:43 [INFO] telemetry_manager: Configuration loaded: {'process_monitor': True, 'file_monitor': True, 'registry_monitor': True, 'network_monitor': True, 'process_interval': 2, 'network_interval': 1, 'registry_interval': 2, 'file_interval': 1, 'health_check_interval': 5, 'stats_refresh_interval': 10, 'file_watch_path': None}
+2026-07-08 17:20:43 [INFO] telemetry_manager: Process monitor initialized.
+2026-07-08 17:20:43 [INFO] telemetry_manager: File monitor initialized.
+2026-07-08 17:20:43 [INFO] telemetry_manager: Registry monitor initialized.
+2026-07-08 17:20:43 [INFO] telemetry_manager: Network monitor initialized.
+2026-07-08 17:20:43 [INFO] telemetry_manager: Process monitor started.
+2026-07-08 17:20:43 [INFO] telemetry_manager: File monitor started.
+2026-07-08 17:20:43 [INFO] telemetry_manager: Registry monitor started.
+2026-07-08 17:20:43 [INFO] telemetry_manager: Network monitor started.
+2026-07-08 17:20:43 [INFO] telemetry_manager: Health monitor started (interval=5s).
+2026-07-08 17:20:43 [INFO] telemetry_manager: Telemetry Manager running. Press Ctrl+C to stop.
+2026-07-08 17:20:54 [INFO] telemetry_manager: Shutdown requested (Ctrl+C).
+2026-07-08 17:20:54 [INFO] telemetry_manager: Shutting down Telemetry Manager...
+2026-07-08 17:20:54 [INFO] telemetry_manager: Health monitor stopped.
+2026-07-08 17:20:54 [INFO] telemetry_manager: Process monitor stopped.
+2026-07-08 17:20:55 [INFO] telemetry_manager: File monitor stopped.
+2026-07-08 17:20:55 [INFO] telemetry_manager: Registry monitor stopped.
+2026-07-08 17:20:55 [INFO] telemetry_manager: Network monitor stopped.
+2026-07-08 17:20:55 [INFO] telemetry_manager: Status printed:
+============================================================
+ Self-Evolving Security AI - Telemetry Manager Status
+============================================================
+ Uptime               : 00:00:12
+ Collectors Running   : 0 / 4
+ Collectors Restarted : 0
+ Health Checks        : 1
+------------------------------------------------------------
+ Collector   Status      Restarts    Events    
+------------------------------------------------------------
+ Process     STOPPED     0           52        
+ File        STOPPED     0           5369      
+ Registry    STOPPED     0           88        
+ Network     STOPPED     0           87        
+============================================================
+2026-07-08 17:20:55 [INFO] telemetry_manager: Telemetry Manager shutdown complete.
