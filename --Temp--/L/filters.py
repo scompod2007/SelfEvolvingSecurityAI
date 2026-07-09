@@ -368,10 +368,6 @@ class FilterEngine:
 # FILE FILTER
 # ============================================================
 
-# ============================================================
-# FILE FILTER
-# ============================================================
-
 class FileFilter:
     """
     File filtering engine.
@@ -433,42 +429,22 @@ class FileFilter:
         FilterResult
         """
 
-        # 2.3.2 Validate event
+        # Validate event
+
         result = self._validate_event(event)
+
         if not result.accepted:
             self._update_statistics(result)
             return result
 
         self.stats.total_events += 1
+
         self.stats.files_seen += 1
 
-        # 2.3.6 Duplicate Detection
-        if self._check_duplicate(event, result):
-            self._update_statistics(result)
-            return result
-
-        # 2.3.5 Whitelist Integration
-        if self._check_whitelist(event, result):
-            self._update_statistics(result)
-            return result
-
-        # 2.3.3 Ignore Rules & 2.3.4 Dangerous Extension Rules
-        if self._check_ignore_rules(event, result):
-            self._update_statistics(result)
-            return result
-
-        # 2.3.7 Severity Scoring
-        self._calculate_severity(event, result)
-
-        # 2.3.8 Confidence Scoring
-        self._calculate_confidence(event, result)
-
-        # 2.3.10 & 2.3.11 Final result and statistics
-        self._update_statistics(result)
         return result
 
     # ========================================================
-    # IGNORE RULES
+    # PLACEHOLDERS
     # ========================================================
 
     def _check_ignore_rules(
@@ -477,59 +453,10 @@ class FileFilter:
         result: FilterResult,
     ) -> bool:
         """
-        Apply ignore rules from filter_rules.py.
-
-        This method also contains the override logic for
-        dangerous extensions. If an ignore rule matches BUT
-        the extension is dangerous, the ignore is cancelled.
-
-        Returns
-        -------
-        bool
-            True if the event was filtered, False otherwise.
+        Part 2.3.3
         """
-        if not self.config.ENABLE_FILTERS:
-            return False
-
-        file_path = event.get("file_path", "")
-        filename = event.get("filename", "")
-        extension = event.get("extension", "")
-        user = event.get("user", "")
-
-        is_dangerous = self.engine.rules.is_dangerous_extension(extension)
-        if is_dangerous:
-            self.engine.rules.record_dangerous_hit()
-
-        # Rule checks
-        if self.engine.rules.is_ignored_path(file_path):
-            self.engine.rules.record_path_hit()
-            if not is_dangerous:
-                result.mark_filtered("Ignored path")
-                return True
-
-        if self.engine.rules.is_ignored_file(filename):
-            self.engine.rules.record_file_hit()
-            if not is_dangerous:
-                result.mark_filtered("Ignored file")
-                return True
-
-        if self.engine.rules.is_ignored_extension(extension):
-            self.engine.rules.record_extension_hit()
-            if not is_dangerous:
-                result.mark_filtered("Ignored extension")
-                return True
-
-        if self.engine.rules.is_ignored_user(user):
-            self.engine.rules.record_user_hit()
-            if not is_dangerous:
-                result.mark_filtered("Ignored user")
-                return True
 
         return False
-
-    # ========================================================
-    # WHITELIST
-    # ========================================================
 
     def _check_whitelist(
         self,
@@ -537,47 +464,10 @@ class FileFilter:
         result: FilterResult,
     ) -> bool:
         """
-        Apply whitelist rules from whitelist.py.
-
-        Returns
-        -------
-        bool
-            True if the event was filtered, False otherwise.
+        Part 2.3.5
         """
-        if not self.config.ENABLE_WHITELIST:
-            return False
-
-        if self.engine.whitelist.is_trusted_process(event.get("process_name")):
-            result.mark_whitelisted()
-            result.mark_filtered("Whitelisted process")
-            return True
-
-        if self.engine.whitelist.is_trusted_folder(event.get("file_path")):
-            result.mark_whitelisted()
-            result.mark_filtered("Whitelisted folder")
-            return True
-
-        if self.engine.whitelist.is_trusted_publisher(event.get("publisher")):
-            result.mark_whitelisted()
-            result.mark_filtered("Whitelisted publisher")
-            return True
 
         return False
-
-    # ========================================================
-    # DUPLICATES
-    # ========================================================
-
-    def _generate_event_hash(self, event: dict) -> str:
-        """
-        Generate a consistent hash for a given event.
-        """
-        payload = (
-            f"{event.get('event_type', '')}|"
-            f"{event.get('file_path', '')}|"
-            f"{event.get('process_name', '')}"
-        )
-        return hashlib.sha256(payload.encode()).hexdigest()
 
     def _check_duplicate(
         self,
@@ -585,41 +475,10 @@ class FileFilter:
         result: FilterResult,
     ) -> bool:
         """
-        Check for and handle duplicate events.
-
-        Returns
-        -------
-        bool
-            True if the event was filtered as a duplicate,
-            False otherwise.
+        Part 2.3.6
         """
-        if not self.config.ENABLE_DUPLICATE_FILTER:
-            return False
-
-        event_hash = self._generate_event_hash(event)
-        result.event_hash = event_hash
-        now = datetime.utcnow()
-
-        with _duplicate_lock:
-            if event_hash in _duplicate_cache:
-                last_seen = _duplicate_cache[event_hash]["timestamp"]
-                delta = (now - last_seen).total_seconds()
-
-                if delta < self.config.DUPLICATE_WINDOW_SECONDS:
-                    _duplicate_cache[event_hash]["count"] += 1
-                    result.mark_duplicate()
-                    result.mark_filtered("Duplicate event")
-                    self.stats.duplicates_removed += 1
-                    return True
-
-            # Record new event
-            _duplicate_cache[event_hash] = {"timestamp": now, "count": 1}
 
         return False
-
-    # ========================================================
-    # SEVERITY & CONFIDENCE
-    # ========================================================
 
     def _calculate_severity(
         self,
@@ -627,31 +486,10 @@ class FileFilter:
         result: FilterResult,
     ) -> None:
         """
-        Calculate event severity based on its properties.
+        Part 2.3.7
         """
-        if not self.config.ENABLE_SEVERITY_ENGINE:
-            return
 
-        extension = event.get("extension", "")
-        event_type = event.get("event_type", "")
-
-        if self.engine.rules.is_dangerous_extension(extension):
-            result.set_severity("HIGH")
-            result.mark_suspicious()
-            return
-
-        if event_type in ("FILE_CREATE", "FILE_DELETE"):
-            if "System32" in event.get("file_path", ""):
-                 result.set_severity("CRITICAL")
-                 result.mark_suspicious()
-                 return
-
-        if event_type == "FILE_RENAME":
-            result.set_severity("MEDIUM")
-            return
-
-        result.set_severity("INFO")
-
+        pass
 
     def _calculate_confidence(
         self,
@@ -659,51 +497,23 @@ class FileFilter:
         result: FilterResult,
     ) -> None:
         """
-        Calculate AI confidence score based on event properties.
+        Part 2.3.8
         """
-        if not self.config.ENABLE_CONFIDENCE_ENGINE:
-            return
 
-        score = 100.0
-
-        if result.whitelisted:
-            score -= 50.0
-
-        if event.get("user") == "SYSTEM":
-            score -= 10.0
-        
-        if self.engine.whitelist.is_trusted_process_path(event.get("process_path")):
-            score -= 20.0
-
-        if result.severity == "CRITICAL":
-            score = 100.0
-        elif result.severity == "HIGH":
-            score = min(100.0, score + 15.0)
-
-        result.set_confidence(score)
-
-    # ========================================================
-    # STATISTICS
-    # ========================================================
+        pass
 
     def _update_statistics(
         self,
         result: FilterResult,
     ) -> None:
         """
-        Update file-specific and global statistics.
+        Part 2.3.10
         """
-        if not self.config.ENABLE_STATISTICS:
-            return
 
         if result.filtered:
             self.stats.files_filtered += 1
-            if not result.duplicate and not result.whitelisted:
-                self.stats.ignored_events += 1
-                self.engine.rules.record_ignored_event()
         else:
             self.stats.files_stored += 1
-
     # ========================================================
     # FILE VALIDATION
     # ========================================================
@@ -737,9 +547,7 @@ class FileFilter:
 
         result.event_type = event.get("event_type", "")
 
-        # 2.3.9 Correlation ID
-        if self.config.ENABLE_CORRELATION_ID:
-            result.correlation_id = generate_correlation_id()
+        result.correlation_id = generate_correlation_id()
 
         # ----------------------------------------------------
         # Event must be a dictionary
@@ -795,19 +603,23 @@ class FileFilter:
         # Optional values
 
         event.setdefault("process_name", "")
-        event.setdefault("process_path", "")
-        event.setdefault("publisher", "")
+
         event.setdefault("user", "")
+
         event.setdefault("extension", "")
-        event.setdefault("filename", Path(event["file_path"]).name)
+
         event.setdefault("size", 0)
+
         event.setdefault("timestamp", datetime.utcnow())
 
         result.accepted = True
+
         result.filtered = False
+
         result.reason = "Valid event"
 
         return result
+
 # ============================================================
 # GLOBAL ENGINE
 # ============================================================
