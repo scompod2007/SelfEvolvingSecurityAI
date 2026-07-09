@@ -1,28 +1,255 @@
-whitelist.py
 
-Part 1.2A ✅
-------------
-Trusted Processes
-Trusted Process Paths
+2.3 — File Filter
 
-Part 1.2B
-------------
-Trusted Publishers
-Trusted Folders
-Trusted Registry Keys
-Trusted IPs
-Trusted Networks
+Responsibilities:
 
-Part 1.2C
-------------
-Trusted Extensions
-Trusted Services
-Trusted Ports
-Trusted Hashes
+Ignore temp files
+Ignore logs
+Ignore cache
+Ignore duplicate modifications
+Check whitelist
+Never ignore:
+exe
+dll
+sys
+ps1
+bat
+cmd
+js
+vbs
+Generate severity
+Generate confidence
+Generate correlation ID
+==========================
+2.3.1 FileFilter class
+2.3.2 File validation
+2.3.3 Ignore rules
+2.3.4 Dangerous extension rules
+2.3.5 Whitelist integration
+2.3.6 Duplicate detection
+2.3.7 Severity scoring
+2.3.8 Confidence scoring
+2.3.9 Correlation ID
+2.3.10 Statistics update
+2.3.11 Final FilterResult
+============================
+2.4 — Process Filter
 
-Part 1.2D
-------------
-Lookup APIs
-Runtime Add/Remove
-Statistics
-JSON/YAML Loader
+Checks:
+
+Trusted process
+Trusted path
+Unsigned executable (future)
+Suspicious parent
+Duplicate processes
+Hidden processes (future)
+2.5 — Network Filter
+
+Checks:
+
+Loopback
+Duplicate connections
+TIME_WAIT suppression
+External IP
+New outbound connection
+Unknown process
+Listening socket
+Protocol
+Port
+
+Never ignore:
+
+External traffic
+DNS
+HTTP
+HTTPS
+SSH
+SMB
+RDP
+2.6 — Registry Filter
+
+Ignore:
+
+Explorer noise
+RecentDocs
+MUICache
+Volatile Environment
+
+Never ignore:
+
+Run
+RunOnce
+Services
+Defender
+Winlogon
+LSA
+Policies
+2.7 — Duplicate Engine
+
+Maintain:
+
+event hash
+
+↓
+
+SHA256
+
+↓
+
+cache
+
+↓
+
+timestamp
+
+If identical within 2 seconds:
+
+Ignore
+
+statistics.duplicates++
+2.8 — Severity Engine
+
+Example mapping:
+
+Critical
+
+High
+
+Medium
+
+Low
+
+Info
+
+Example:
+
+Run Key Modified
+
+↓
+
+Critical
+
+Temporary TXT
+
+↓
+
+Info
+
+Unknown EXE
+
+↓
+
+High
+
+DLL in Temp
+
+↓
+
+Critical
+2.9 — Confidence Engine
+
+Example:
+
+0-100
+
+Factors:
+
+Trusted
+Signed
+Path
+Extension
+Duplicate
+Registry
+Network
+2.10 — Correlation Engine
+
+Every event receives
+
+CID
+
+Example
+
+CID-20260709-000001
+
+Later the AI can correlate:
+
+Process
+
+↓
+
+Registry
+
+↓
+
+Network
+
+↓
+
+File
+
+under one correlation ID.
+
+2.11 — Statistics Engine
+
+Maintain
+
+Files Seen
+
+Files Ignored
+
+Files Stored
+
+Processes Seen
+
+Processes Ignored
+
+Connections Seen
+
+Connections Ignored
+
+Registry Seen
+
+Registry Ignored
+
+Duplicates Removed
+
+Noise Reduction %
+2.12 — Master Dispatcher
+
+Collectors will never call individual filters directly.
+
+Instead:
+
+Process Monitor
+
+↓
+
+FilterEngine.filter_process()
+
+↓
+
+FilterResult
+
+↓
+
+Database
+File Monitor
+
+↓
+
+FilterEngine.filter_file()
+
+↓
+
+FilterResult
+Network Monitor
+
+↓
+
+FilterEngine.filter_network()
+
+↓
+
+FilterResult
+
+Everything goes through one engine.
