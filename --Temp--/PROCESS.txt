@@ -1,49 +1,63 @@
-You're making good progress. Based on what you've completed, here's the remaining roadmap for the **Filter System** only.
+ProcessFilter Roadmap
 
-## Completed
+1. Create ProcessFilter class
+   └── Same structure as FileFilter
 
-### Part 1 – Configuration Layer
+2. Validate Process Events
+   └── process_name
+   └── process_path
+   └── pid
+   └── event_type
+   └── timestamp
 
-* ✅ 1.1 `filter_config.py`
-* ✅ 1.2 `whitelist.py`
+3. Ignore Rules
+   └── Ignore known safe/system processes
+   └── Ignore configured paths
+   └── Ignore configured publishers
 
-### Part 3 – Rule Database
+4. Whitelist
+   └── Trusted process
+   └── Trusted publisher
+   └── Trusted installation path
 
-* ✅ 3.1 Rule Sets
-* ✅ 3.2 Rule Lookup APIs
-* ✅ 3.3 Rule Validation
-* ✅ 3.4 Runtime Statistics
-* ✅ 3.5 Dynamic Rule Loader
-* ✅ 3.6 Self-Evolving AI Support (Architecture)
+5. Duplicate Detection
+   └── Generate process hash
+   └── Detect repeated events
+   └── Filter duplicates
 
----
+6. Severity Engine
+   └── CRITICAL
+   └── HIGH
+   └── MEDIUM
+   └── INFO
 
-# Remaining Filter System
+7. Confidence Engine
+   └── Calculate confidence score
+   └── Adjust for trusted/suspicious attributes
 
-## Part 2 – Core Filter Engine (`filters.py`) ⭐⭐⭐⭐⭐
+8. Correlation ID
+   └── Generate unique correlation ID
 
-### 2.1 Initialization
+9. Statistics
+   └── Processes seen
+   └── Stored
+   └── Filtered
+   └── Duplicates
+   └── Ignored
 
-* ✅ Done
+10. Manual Testing
+    └── Normal process
+    └── Trusted process
+    └── Duplicate process
+    └── Suspicious process
+    └── Critical process
+    └── Invalid event
 
-### 2.2 FilterResult Class
-
-* ✅ Done
-
-### 2.3 File Filter
-
-* ✅ 2.3.1 FileFilter class
-* ✅ 2.3.2 File Validation
-* ⬜ 2.3.3 Ignore Rules
-* ⬜ 2.3.4 Dangerous Extension Rules
-* ⬜ 2.3.5 Whitelist Integration
-* ⬜ 2.3.6 Duplicate Detection
-* ⬜ 2.3.7 Severity Scoring
-* ⬜ 2.3.8 Confidence Scoring
-* ⬜ 2.3.9 Correlation ID
-* ⬜ 2.3.10 Statistics Update
-* ⬜ 2.3.11 Final FilterResult
-
+11. Production Audit
+    └── Logic bugs
+    └── Thread safety
+    └── Memory usage
+    └── Edge cases
 ---
 
 ### 2.4 Process Filter

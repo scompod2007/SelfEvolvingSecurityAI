@@ -897,6 +897,412 @@ class FileFilter:
         result.reason = "Valid event"
 
         return result
+    
+class ProcessFilter:
+    """
+    Process filtering engine.
+
+    Responsibilities
+    ----------------
+    • Filter unwanted process events
+    • Apply whitelist rules
+    • Apply ignore rules
+    • Detect duplicate events
+    • Assign severity
+    • Assign confidence
+    • Generate correlation IDs
+    • Update statistics
+
+    NOTE:
+    This class does NOT monitor processes.
+    It only evaluates process events received
+    from the Process Monitor.
+    """
+
+    def __init__(self, engine: "FilterEngine") -> None:
+        """
+        Initialize the Process Filter.
+        """
+        self.engine = engine
+        self.config = engine.config
+        self.stats = engine.statistics
+        self.logger = engine.logger
+
+    # ========================================================
+    # MAIN ENTRY
+    # ========================================================
+
+    def filter_event(self, event: dict) -> FilterResult:
+        """
+        Evaluate a single process event.
+
+        Parameters
+        ----------
+        event : dict
+
+            Expected fields:
+
+                process_name
+                process_path
+                pid
+                event_type
+                timestamp
+
+        Returns
+        -------
+        FilterResult
+        """
+        # Create a mutable copy to avoid side effects on the original event object
+        event_copy = event.copy() if isinstance(event, dict) else event
+
+        # Validate event
+        result = self._validate_event(event_copy)
+        if not result.accepted:
+            self._update_statistics(result)
+            return result
+
+        self.stats.total_events += 1
+        self.stats.processes_seen += 1
+
+        # Duplicate Detection
+        if self._check_duplicate(event_copy, result):
+            self._update_statistics(result)
+            return result
+
+        # Severity Scoring (Runs before Whitelist)
+        self._calculate_severity(event_copy, result)
+
+        # Whitelist Integration
+        if self._check_whitelist(event_copy, result):
+            self._update_statistics(result)
+            return result
+
+        # Ignore Rules
+        if self._check_ignore_rules(event_copy, result):
+            self._update_statistics(result)
+            return result
+
+        # Confidence Scoring
+        self._calculate_confidence(event_copy, result)
+
+        # Final result and statistics
+        self._update_statistics(result)
+        return result
+
+    # ========================================================
+    # PROCESS VALIDATION
+    # ========================================================
+
+    def _validate_event(
+            self,
+            event: dict,
+        ) -> FilterResult:
+            """
+            Validate a process event before filtering.
+            """
+            result = FilterResult()
+            result.collector = "PROCESS"
+
+            # 1. Validate that the input is a dictionary before accessing any keys.
+            if not isinstance(event, dict):
+                result.mark_filtered("Invalid event object")
+                return result
+
+            result.event_type = event.get("event_type", "")
+
+            # 4. Generate a correlation ID if correlation IDs are enabled.
+            if self.config.ENABLE_CORRELATION_ID:
+                result.correlation_id = generate_correlation_id()
+
+            # 5. Validate the required fields.
+            required_str_fields = ("process_name", "process_path", "event_type")
+            for field in required_str_fields:
+                value = event.get(field)
+                if value is None:
+                    result.mark_filtered(f"Missing required field: {field}")
+                    return result
+                if isinstance(value, str) and not value.strip():
+                    result.mark_filtered(f"Empty required field: {field}")
+                    return result
+
+            # Specific validation for 'pid'
+            pid_value = event.get("pid")
+            if pid_value is None:
+                result.mark_filtered("Missing required field: pid")
+                return result
+            if not isinstance(pid_value, int) or pid_value < 0:
+                result.mark_filtered(f"Invalid pid value: {pid_value}")
+                return result
+        
+            # The 'timestamp' field is handled by setdefault below.
+
+            # 6. Normalize the event.
+            event["process_name"] = str(event["process_name"]).strip()
+            event["process_path"] = str(event["process_path"]).strip()
+            event["event_type"] = str(event["event_type"]).upper()
+
+            # Set defaults for optional fields.
+            event.setdefault("command_line", "")
+            event.setdefault("parent_process", "")
+            event.setdefault("parent_pid", 0)
+            event.setdefault("publisher", "")
+            event.setdefault("signature", "unsigned")
+            event.setdefault("user", "")
+            event.setdefault("integrity_level", "unknown")
+        
+            # 7. Add timestamp only if missing.
+            event.setdefault("timestamp", datetime.utcnow())
+
+            # 11. If validation succeeds:
+            result.accepted = True
+            result.filtered = False
+            # result.reason defaults to "Accepted"
+
+            return result
+
+    # ========================================================
+    # IGNORE RULES
+    # ========================================================
+
+    def _check_ignore_rules(
+            self,
+            event: dict,
+            result: FilterResult,
+        ) -> bool:
+            """
+            Apply process-specific ignore rules from filter_rules.py.
+
+            Returns
+            -------
+            bool
+                True if the event was filtered, False otherwise.
+            """
+            if not self.config.ENABLE_FILTERS:
+                return False
+
+            user = event.get("user", "")
+            process_name = event.get("process_name", "")
+
+            # Ignore events from configured noisy user accounts (e.g., SYSTEM)
+            if self.engine.rules.is_ignored_user(user):
+                self.engine.rules.record_user_hit()
+                result.mark_filtered("Ignored user")
+                return True
+
+            # Ignore events from configured noisy system services
+            if self.engine.rules.is_ignored_service(process_name):
+                self.engine.rules.record_service_hit()
+                result.mark_filtered("Ignored service")
+                return True
+
+            return False
+
+    # ========================================================
+    # WHITELIST
+    # ========================================================
+
+    def _check_whitelist(
+            self,
+            event: dict,
+            result: FilterResult,
+        ) -> bool:
+            """
+            Apply process-specific whitelist rules from whitelist.py.
+
+            Returns
+            -------
+            bool
+                True if the event was filtered, False otherwise.
+            """
+            if not self.config.ENABLE_WHITELIST:
+                return False
+
+            # If severity analysis already marked the event as suspicious,
+            # the whitelist must not apply.
+            if result.suspicious:
+                return False
+
+            # 1. Trusted Process
+            if self.engine.whitelist.is_trusted_process(event.get("process_name")):
+                result.mark_whitelisted()
+                result.mark_filtered("Whitelisted process")
+                return True
+
+            # 2. Trusted Publisher
+            if self.engine.whitelist.is_trusted_publisher(event.get("publisher")):
+                result.mark_whitelisted()
+                result.mark_filtered("Whitelisted publisher")
+                return True
+
+            # 3. Trusted Installation Path
+            if self.engine.whitelist.is_trusted_process_path(event.get("process_path")):
+                result.mark_whitelisted()
+                result.mark_filtered("Whitelisted process path")
+                return True
+
+            return False
+
+    # ========================================================
+    # DUPLICATES
+    # ========================================================
+
+    def _generate_event_hash(self, event: dict) -> str:
+            """
+            Generate a consistent hash for a given process event.
+            """
+            payload = (
+                f"{event.get('event_type', '')}|"
+                f"{event.get('process_name', '')}|"
+                f"{event.get('process_path', '')}|"
+                f"{event.get('pid', 0)}|"
+                f"{event.get('parent_pid', 0)}"
+            )
+            return hashlib.sha256(payload.encode()).hexdigest()
+
+        def _check_duplicate(
+            self,
+            event: dict,
+            result: FilterResult,
+        ) -> bool:
+            """
+            Check for and handle duplicate process events.
+            """
+            if not self.config.ENABLE_DUPLICATE_FILTER:
+                return False
+
+            event_hash = self._generate_event_hash(event)
+            result.event_hash = event_hash
+            now = datetime.utcnow()
+
+            global _last_cache_cleanup_time
+
+            with _duplicate_lock:
+                # Check if cache cleanup is needed to prevent memory leak
+                if (now - _last_cache_cleanup_time).total_seconds() > self.config.CACHE_CLEANUP_INTERVAL:
+                    expiration_window = self.config.DUPLICATE_WINDOW_SECONDS * 2
+                    keys_to_delete = [
+                        key for key, cache_entry in _duplicate_cache.items()
+                        if (now - cache_entry["timestamp"]).total_seconds() > expiration_window
+                    ]
+                    for key in keys_to_delete:
+                        del _duplicate_cache[key]
+                    _last_cache_cleanup_time = now
+
+                if event_hash in _duplicate_cache:
+                    last_seen = _duplicate_cache[event_hash]["timestamp"]
+                    delta = (now - last_seen).total_seconds()
+
+                    if delta < self.config.DUPLICATE_WINDOW_SECONDS:
+                        _duplicate_cache[event_hash]["count"] += 1
+                        result.mark_duplicate()
+                        result.mark_filtered("Duplicate event")
+                        self.stats.duplicates_removed += 1
+                        return True
+
+                # Record new event
+                _duplicate_cache[event_hash] = {"timestamp": now, "count": 1}
+
+            return False
+    # ========================================================
+    # SEVERITY & CONFIDENCE
+    # ========================================================
+
+    def _calculate_severity(
+        self,
+        event: dict,
+        result: FilterResult,
+    ) -> None:
+        """
+        Calculate process event severity based on its properties.
+        """
+        if not self.config.ENABLE_SEVERITY_ENGINE:
+            return
+
+        cmd_line = event.get("command_line", "").lower()
+        process_path = event.get("process_path", "")
+        process_name = event.get("process_name", "")
+        parent_process = event.get("parent_process", "")
+
+        # CRITICAL: System process running from a non-standard path
+        if (
+            self.engine.whitelist.is_trusted_process(process_name) and
+            not self.engine.whitelist.is_trusted_process_path(process_path)
+        ):
+            result.set_severity("CRITICAL")
+            result.mark_suspicious()
+            return
+
+        # HIGH: Suspicious command line arguments or running from temp folders
+        suspicious_keywords = ["-enc", "powershell -w hidden", "invoke-expression"]
+        if any(keyword in cmd_line for keyword in suspicious_keywords):
+            result.set_severity("HIGH")
+            result.mark_suspicious()
+            return
+
+        if self.engine.rules.is_ignored_path(process_path): # e.g., Temp folders
+            result.set_severity("HIGH")
+            result.mark_suspicious()
+            return
+
+        # MEDIUM: Unusual parent-child relationships
+        if process_name == "svchost.exe" and parent_process != "services.exe":
+            result.set_severity("MEDIUM")
+            result.mark_suspicious()
+            return
+
+        # Default
+        result.set_severity("INFO")
+
+    def _calculate_confidence(
+        self,
+        event: dict,
+        result: FilterResult,
+    ) -> None:
+        """
+        Calculate AI confidence score for a process event.
+        """
+        if not self.config.ENABLE_CONFIDENCE_ENGINE:
+            return
+
+        score = 100.0
+
+        if event.get("signature", "unsigned").lower() == "unsigned":
+            score -= 25.0
+
+        if event.get("user") == "SYSTEM":
+            score -= 10.0
+
+        if result.severity == "CRITICAL":
+            score = 100.0
+        elif result.severity == "HIGH":
+            score = min(100.0, score + 20.0)
+        elif result.severity == "MEDIUM":
+            score = min(100.0, score + 5.0)
+
+        result.set_confidence(score)
+
+    # ========================================================
+    # STATISTICS
+    # ========================================================
+
+    def _update_statistics(
+        self,
+        result: FilterResult,
+    ) -> None:
+        """
+        Update process-specific and global statistics.
+        """
+        if not self.config.ENABLE_STATISTICS:
+            return
+
+        if result.filtered:
+            self.stats.processes_filtered += 1
+            if not result.duplicate and not result.whitelisted:
+                self.stats.ignored_events += 1
+                self.engine.rules.record_ignored_event()
+        else:
+            self.stats.processes_stored += 1
+
 # ============================================================
 # GLOBAL ENGINE
 # ============================================================
