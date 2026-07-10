@@ -31,6 +31,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 from itertools import count
+from pathlib import Path
 from typing import Any
 
 # ============================================================
@@ -286,6 +287,9 @@ _duplicate_cache: dict[str, dict[str, Any]] = {}
 
 _duplicate_lock = threading.Lock()
 
+_last_cache_cleanup_time = datetime.utcnow()
+
+
 # ============================================================
 # EVENT CACHE
 # ============================================================
@@ -397,13 +401,9 @@ class FileFilter:
         """
         Initialize the File Filter.
         """
-
         self.engine = engine
-
         self.config = engine.config
-
         self.stats = engine.statistics
-
         self.logger = engine.logger
 
     # ========================================================
@@ -432,9 +432,11 @@ class FileFilter:
         -------
         FilterResult
         """
+        # Create a mutable copy to avoid side effects on the original event object
+        event_copy = event.copy() if isinstance(event, dict) else event
 
         # 2.3.2 Validate event
-        result = self._validate_event(event)
+        result = self._validate_event(event_copy)
         if not result.accepted:
             self._update_statistics(result)
             return result
@@ -443,28 +445,99 @@ class FileFilter:
         self.stats.files_seen += 1
 
         # 2.3.6 Duplicate Detection
-        if self._check_duplicate(event, result):
+        if self._check_duplicate(event_copy, result):
             self._update_statistics(result)
             return result
 
+        # 2.3.7 Severity Scoring (Runs before Whitelist)
+        self._calculate_severity(event_copy, result)
+
         # 2.3.5 Whitelist Integration
-        if self._check_whitelist(event, result):
+        if self._check_whitelist(event_copy, result):
             self._update_statistics(result)
             return result
 
         # 2.3.3 Ignore Rules & 2.3.4 Dangerous Extension Rules
-        if self._check_ignore_rules(event, result):
+        if self._check_ignore_rules(event_copy, result):
             self._update_statistics(result)
             return result
 
-        # 2.3.7 Severity Scoring
-        self._calculate_severity(event, result)
-
         # 2.3.8 Confidence Scoring
-        self._calculate_confidence(event, result)
+        self._calculate_confidence(event_copy, result)
 
         # 2.3.10 & 2.3.11 Final result and statistics
         self._update_statistics(result)
+        return result
+
+    # ========================================================
+    # FILE VALIDATION
+    # ========================================================
+
+    def _validate_event(
+        self,
+        event: dict,
+    ) -> FilterResult:
+        """
+        Validate a file event before filtering.
+
+        This function ONLY validates the event.
+
+        It does NOT:
+            • Apply filters
+            • Check whitelist
+            • Detect duplicates
+            • Calculate severity
+
+        Returns
+        -------
+        FilterResult
+
+            accepted=True  -> Event is valid
+            accepted=False -> Invalid event
+        """
+        result = FilterResult()
+        result.collector = "FILE"
+
+        # Event must be a dictionary (checked first to prevent crashes)
+        if not isinstance(event, dict):
+            result.mark_filtered("Invalid event object")
+            return result
+
+        result.event_type = event.get("event_type", "")
+
+        # Correlation ID
+        if self.config.ENABLE_CORRELATION_ID:
+            result.correlation_id = generate_correlation_id()
+
+        # Required fields
+        required_fields = ("file_path", "event_type")
+        for field in required_fields:
+            value = event.get(field)
+            if value is None:
+                result.mark_filtered(f"Missing required field: {field}")
+                return result
+            if isinstance(value, str) and not value.strip():
+                result.mark_filtered(f"Empty required field: {field}")
+                return result
+
+        # Normalize values
+        event["file_path"] = str(event["file_path"]).strip()
+        event["event_type"] = str(event["event_type"]).upper()
+
+        # Optional values
+        event.setdefault("process_name", "")
+        event.setdefault("process_path", "")
+        event.setdefault("publisher", "")
+        event.setdefault("user", "")
+        event.setdefault("extension", "")
+        event.setdefault("filename", Path(event["file_path"]).name)
+        event.setdefault("size", 0)
+        event.setdefault("timestamp", datetime.utcnow())
+
+        result.accepted = True
+        result.filtered = False
+        # The reason defaults to "Accepted" and is only changed if filtered.
+
         return result
 
     # ========================================================
@@ -547,6 +620,11 @@ class FileFilter:
         if not self.config.ENABLE_WHITELIST:
             return False
 
+        # If severity analysis already marked the event as suspicious,
+        # the whitelist must not apply.
+        if result.suspicious:
+            return False
+
         if self.engine.whitelist.is_trusted_process(event.get("process_name")):
             result.mark_whitelisted()
             result.mark_filtered("Whitelisted process")
@@ -600,7 +678,20 @@ class FileFilter:
         result.event_hash = event_hash
         now = datetime.utcnow()
 
+        global _last_cache_cleanup_time
+
         with _duplicate_lock:
+            # Check if cache cleanup is needed to prevent memory leak
+            if (now - _last_cache_cleanup_time).total_seconds() > self.config.CACHE_CLEANUP_INTERVAL:
+                expiration_window = self.config.DUPLICATE_WINDOW_SECONDS * 2
+                keys_to_delete = [
+                    key for key, cache_entry in _duplicate_cache.items()
+                    if (now - cache_entry["timestamp"]).total_seconds() > expiration_window
+                ]
+                for key in keys_to_delete:
+                    del _duplicate_cache[key]
+                _last_cache_cleanup_time = now
+
             if event_hash in _duplicate_cache:
                 last_seen = _duplicate_cache[event_hash]["timestamp"]
                 delta = (now - last_seen).total_seconds()
@@ -632,26 +723,32 @@ class FileFilter:
         if not self.config.ENABLE_SEVERITY_ENGINE:
             return
 
-        extension = event.get("extension", "")
+        extension = event.get("extension", "").lower()
         event_type = event.get("event_type", "")
+        file_path_lower = event.get("file_path", "").lower()
 
+        # Highest priority: critical system files
+        if (
+            event_type in ("FILE_CREATE", "FILE_DELETE", "FILE_MODIFY")
+            and "system32" in file_path_lower
+        ):
+            result.set_severity("CRITICAL")
+            result.mark_suspicious()
+            return
+
+        # Second priority: dangerous extensions
         if self.engine.rules.is_dangerous_extension(extension):
             result.set_severity("HIGH")
             result.mark_suspicious()
             return
 
-        if event_type in ("FILE_CREATE", "FILE_DELETE"):
-            if "System32" in event.get("file_path", ""):
-                 result.set_severity("CRITICAL")
-                 result.mark_suspicious()
-                 return
-
+        # Medium priority
         if event_type == "FILE_RENAME":
             result.set_severity("MEDIUM")
             return
 
+        # Default
         result.set_severity("INFO")
-
 
     def _calculate_confidence(
         self,
@@ -666,12 +763,9 @@ class FileFilter:
 
         score = 100.0
 
-        if result.whitelisted:
-            score -= 50.0
-
         if event.get("user") == "SYSTEM":
             score -= 10.0
-        
+
         if self.engine.whitelist.is_trusted_process_path(event.get("process_path")):
             score -= 20.0
 
@@ -703,7 +797,6 @@ class FileFilter:
                 self.engine.rules.record_ignored_event()
         else:
             self.stats.files_stored += 1
-
     # ========================================================
     # FILE VALIDATION
     # ========================================================
@@ -732,24 +825,20 @@ class FileFilter:
         """
 
         result = FilterResult()
-
         result.collector = "FILE"
 
+        # ----------------------------------------------------
+        # Event must be a dictionary
+        # ----------------------------------------------------
+        if not isinstance(event, dict):
+            result.mark_filtered("Invalid event object")
+            return result
+        
         result.event_type = event.get("event_type", "")
 
         # 2.3.9 Correlation ID
         if self.config.ENABLE_CORRELATION_ID:
             result.correlation_id = generate_correlation_id()
-
-        # ----------------------------------------------------
-        # Event must be a dictionary
-        # ----------------------------------------------------
-
-        if not isinstance(event, dict):
-
-            result.mark_filtered("Invalid event object")
-
-            return result
 
         # ----------------------------------------------------
         # Required fields
