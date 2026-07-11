@@ -137,7 +137,7 @@ Filter System
 │
 ├── Part 2 - Core Filter Engine
 │   ├── 2.1 Imports & Base Classes
-│   ├── 2.2 File Filter
+│   ├── 2.2 File Filter=
 │   ├── 2.3 Process Filter
 │   ├── 2.4 Network Filter
 │   ├── 2.5 Registry Filter

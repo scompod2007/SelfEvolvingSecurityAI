@@ -1,111 +1,71 @@
-ProcessFilter Roadmap
+FilterEngine
+│
+├── 1. Create FilterEngine class
+│     └── Central filtering pipeline
+│
+├── 2. Initialize All Filters
+│     ├── ProcessFilter
+│     ├── NetworkFilter
+│     ├── RegistryFilter
+│     └── FileFilter
+│
+├── 3. Event Routing
+│     ├── Detect event type
+│     ├── Route to correct filter
+│     └── Reject unknown events
+│
+├── 4. Unified Filtering Pipeline
+│     ├── Validation
+│     ├── Ignore Rules
+│     ├── Whitelist
+│     ├── Duplicate Detection
+│     ├── Severity Engine
+│     ├── Confidence Engine
+│     └── Correlation ID
+│
+├── 5. Unified Statistics
+│     ├── Total events
+│     ├── Accepted
+│     ├── Filtered
+│     ├── Ignored
+│     ├── Duplicates
+│     └── Per-filter statistics
+│
+├── 6. Error Handling
+│     ├── Invalid filter
+│     ├── Unknown event type
+│     ├── Exception handling
+│     └── Safe fallback result
+│
+├── 7. Result Standardization
+│     ├── Common FilterResult
+│     ├── Common status fields
+│     ├── Common metadata
+│     └── Consistent output format
+│
+├── 8. Logging
+│     ├── Pipeline logs
+│     ├── Filter execution logs
+│     ├── Errors
+│     └── Performance timing
+│
+├── 9. Performance Metrics
+│     ├── Events/sec
+│     ├── Filter latency
+│     ├── Processing time
+│     └── Queue statistics
+│
+└── 10. Manual Testing
+      ├── Process event
+      ├── Network event
+      ├── Registry event
+      ├── File event
+      ├── Unknown event
+      ├── Invalid event
+      ├── Mixed event stream
+      └── Error handling
 
-1. Create ProcessFilter class
-   └── Same structure as FileFilter
-
-2. Validate Process Events
-   └── process_name
-   └── process_path
-   └── pid
-   └── event_type
-   └── timestamp
-
-3. Ignore Rules
-   └── Ignore known safe/system processes
-   └── Ignore configured paths
-   └── Ignore configured publishers
-
-4. Whitelist
-   └── Trusted process
-   └── Trusted publisher
-   └── Trusted installation path
-
-5. Duplicate Detection
-   └── Generate process hash
-   └── Detect repeated events
-   └── Filter duplicates
-
-6. Severity Engine
-   └── CRITICAL
-   └── HIGH
-   └── MEDIUM
-   └── INFO
-
-7. Confidence Engine
-   └── Calculate confidence score
-   └── Adjust for trusted/suspicious attributes
-
-8. Correlation ID
-   └── Generate unique correlation ID
-
-9. Statistics
-   └── Processes seen
-   └── Stored
-   └── Filtered
-   └── Duplicates
-   └── Ignored
-
-10. Manual Testing
-    └── Normal process
-    └── Trusted process
-    └── Duplicate process
-    └── Suspicious process
-    └── Critical process
-    └── Invalid event
-
-11. Production Audit
-    └── Logic bugs
-    └── Thread safety
-    └── Memory usage
-    └── Edge cases
----
-
-### 2.4 Process Filter
-
-* Process validation
-* Ignore rules
-* Whitelist integration
-* Unsigned process detection
-* Parent-child analysis
-* Severity scoring
-* Confidence scoring
-* Correlation ID
-* Statistics
-* Final FilterResult
-
----
-
-### 2.5 Network Filter
-
-* Connection validation
-* Ignore localhost
-* Ignore TIME_WAIT
-* Ignore duplicate connections
-* External connection detection
-* Listening port detection
-* Whitelist
-* Severity
-* Confidence
-* Correlation
-* Statistics
-* Final FilterResult
-
----
-
-### 2.6 Registry Filter
-
-* Registry validation
-* Ignore noisy keys
-* Never-ignore keys
-* Whitelist
-* Severity
-* Confidence
-* Correlation
-* Statistics
-* Final FilterResult
-
----
-
+      
 ### 2.7 Duplicate Engine
 
 * Event hashing
@@ -180,12 +140,3 @@ ProcessFilter Roadmap
 
 ---
 
-## Progress
-
-* **Part 1:** 100% ✅
-* **Part 2:** ~20% (started)
-* **Part 3:** 100% ✅
-* **Part 4:** 0%
-* **Part 5:** 0%
-
-Overall, your filter system is roughly **45–50% complete**. The biggest remaining task is **Part 2 (`filters.py`)**, which is the core decision engine where all your configuration, whitelist, and rule database come together. Once that's finished, the rest is mostly integration and testing.
