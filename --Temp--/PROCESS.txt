@@ -1,69 +1,47 @@
-FilterEngine
+Part 3 - Duplicate Engine
 │
-├── 1. Create FilterEngine class
-│     └── Central filtering pipeline
+├── 3.1 Duplicate Configuration
+│     ├── Cache size
+│     ├── TTL (expiration)
+│     └── Duplicate threshold
 │
-├── 2. Initialize All Filters
-│     ├── ProcessFilter
-│     ├── NetworkFilter
-│     ├── RegistryFilter
-│     └── FileFilter
+├── 3.2 Event Fingerprinting
+│     ├── Event hash generation
+│     ├── Stable hash fields
+│     └── Hash normalization
 │
-├── 3. Event Routing
-│     ├── Detect event type
-│     ├── Route to correct filter
-│     └── Reject unknown events
+├── 3.3 Duplicate Cache
+│     ├── Store hashes
+│     ├── Timestamp tracking
+│     └── Cache cleanup
 │
-├── 4. Unified Filtering Pipeline
-│     ├── Validation
-│     ├── Ignore Rules
-│     ├── Whitelist
-│     ├── Duplicate Detection
-│     ├── Severity Engine
-│     ├── Confidence Engine
-│     └── Correlation ID
+├── 3.4 Duplicate Detection
+│     ├── Exact duplicate check
+│     ├── Time-window comparison
+│     └── Duplicate decision
 │
-├── 5. Unified Statistics
-│     ├── Total events
-│     ├── Accepted
-│     ├── Filtered
-│     ├── Ignored
-│     ├── Duplicates
-│     └── Per-filter statistics
+├── 3.5 Duplicate Metadata
+│     ├── Duplicate flag
+│     ├── Duplicate reason
+│     └── Duplicate count
 │
-├── 6. Error Handling
-│     ├── Invalid filter
-│     ├── Unknown event type
-│     ├── Exception handling
-│     └── Safe fallback result
+├── 3.6 Cache Maintenance
+│     ├── Expired entry removal
+│     ├── Cache size control
+│     └── Memory optimization
 │
-├── 7. Result Standardization
-│     ├── Common FilterResult
-│     ├── Common status fields
-│     ├── Common metadata
-│     └── Consistent output format
+├── 3.7 Statistics
+│     ├── Total duplicates
+│     ├── Duplicate rate
+│     └── Cache hit ratio
 │
-├── 8. Logging
-│     ├── Pipeline logs
-│     ├── Filter execution logs
-│     ├── Errors
-│     └── Performance timing
-│
-├── 9. Performance Metrics
-│     ├── Events/sec
-│     ├── Filter latency
-│     ├── Processing time
-│     └── Queue statistics
-│
-└── 10. Manual Testing
-      ├── Process event
-      ├── Network event
-      ├── Registry event
-      ├── File event
-      ├── Unknown event
-      ├── Invalid event
-      ├── Mixed event stream
-      └── Error handling
+└── 3.8 Manual Testing
+      ├── First event
+      ├── Exact duplicate
+      ├── Different event
+      ├── Expired duplicate
+      ├── Cache cleanup
+      └── Stress test
 
       
 ### 2.7 Duplicate Engine

@@ -148,6 +148,8 @@ class FilterResult:
 
     duplicate: bool = False
 
+    ignored: bool = False
+
     whitelisted: bool = False
 
     suspicious: bool = False
@@ -189,6 +191,12 @@ class FilterResult:
         """
 
         self.duplicate = True
+    
+    def mark_ignored(self, reason: str) -> None:
+        self.accepted = False
+        self.filtered = True
+        self.ignored = True
+        self.reason = reason
 
     def mark_whitelisted(self) -> None:
         """
@@ -267,6 +275,8 @@ class FilterResult:
             "timestamp": self.timestamp,
 
             "metadata": self.metadata,
+
+            "ignored": self.ignored
 
         }
 
