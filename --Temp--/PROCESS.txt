@@ -1,56 +1,65 @@
-Part 3 - Duplicate Engine
-│
-├── 3.1 Duplicate Configuration
-│     ├── Cache size
-│     ├── TTL (expiration)
-│     └── Duplicate threshold
-│
-├── 3.2 Event Fingerprinting
-│     ├── Event hash generation
-│     ├── Stable hash fields
-│     └── Hash normalization
-│
-├── 3.3 Duplicate Cache
-│     ├── Store hashes
-│     ├── Timestamp tracking
-│     └── Cache cleanup
-│
-├── 3.4 Duplicate Detection
-│     ├── Exact duplicate check
-│     ├── Time-window comparison
-│     └── Duplicate decision
-│
-├── 3.5 Duplicate Metadata
-│     ├── Duplicate flag
-│     ├── Duplicate reason
-│     └── Duplicate count
-│
-├── 3.6 Cache Maintenance
-│     ├── Expired entry removal
-│     ├── Cache size control
-│     └── Memory optimization
-│
-├── 3.7 Statistics
-│     ├── Total duplicates
-│     ├── Duplicate rate
-│     └── Cache hit ratio
-│
-└── 3.8 Manual Testing
-      ├── First event
-      ├── Exact duplicate
-      ├── Different event
-      ├── Expired duplicate
-      ├── Cache cleanup
-      └── Stress test
+2.8.1 Severity Configuration
 
-      
-### 2.7 Duplicate Engine
+Severity levels (INFO, LOW, MEDIUM, HIGH, CRITICAL)
+Configurable score thresholds
+Enable/disable severity engine
 
-* Event hashing
-* Cache
-* Time window
-* Burst suppression
+2.8.2 Risk Scoring
 
+Base risk score calculation
+Score normalization (0–100)
+Configurable weights
+
+2.8.3 Event Weighting
+
+Assign weights based on event type
+Different weights for Process, File, Network, Registry events
+Combine weights into final risk score
+
+2.8.4 Dangerous File Detection
+
+Detect suspicious extensions (.exe, .dll, .sys, .ps1, .bat, .vbs, .js, .scr, etc.)
+Detect execution from suspicious locations (Temp, AppData, Startup, Downloads)
+Increase severity accordingly
+
+2.8.5 Dangerous Registry Detection
+
+Detect persistence locations (Run, RunOnce, Services, Winlogon, Image File Execution Options, etc.)
+Detect suspicious registry modifications
+Increase severity accordingly
+
+2.8.6 Dangerous Network Detection
+
+Detect suspicious ports
+Detect public IP connections
+Detect outbound connections to risky destinations
+Detect uncommon protocols if applicable
+Increase severity accordingly
+
+2.8.7 Final Severity Decision
+
+Convert total risk score into severity:
+INFO
+LOW
+MEDIUM
+HIGH
+CRITICAL
+
+2.8.8 Severity Metadata
+
+Final severity
+Risk score
+Reason(s) for severity
+Matched indicators
+
+2.8.9 Manual Testing
+
+Benign events
+Dangerous file events
+Dangerous registry events
+Dangerous network events
+Mixed scenarios
+Stress test
 ---
 
 ### 2.8 Severity Engine

@@ -70,7 +70,11 @@ class FilterConfig:
 
     MAX_EVENT_CACHE: int = 10000
 
+    MAX_DUPLICATE_CACHE_SIZE: int = 100000
+
     DUPLICATE_WINDOW_SECONDS: int = 2
+
+    DUPLICATE_TTL_SECONDS: int = 60
 
     BURST_THRESHOLD: int = 50
 
