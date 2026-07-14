@@ -9,11 +9,12 @@ network-related telemetry, such as connections to public IPs,
 suspicious ports, dangerous protocols, and DNS abuse.
 
 It has been refactored for improved maintainability, extensibility, 
-future AI threat intelligence integration, and high-performance 
-stateless execution.
+future AI threat intelligence integration, robust exception handling, 
+and high-performance stateless execution.
 """
 
 import ipaddress
+import logging
 import math
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -21,11 +22,15 @@ from enum import Enum, auto
 from types import MappingProxyType
 from typing import Any
 
+# ============================================================
+# LOGGING CONFIGURATION
+# ============================================================
+logger = logging.getLogger(__name__)
+
 
 # ============================================================
 # CATEGORIES
 # ============================================================
-
 class PortCategory(Enum):
     """Enumeration of network port threat categories."""
     REMOTE_ACCESS = auto()
@@ -41,7 +46,6 @@ class PortCategory(Enum):
 # ============================================================
 # SCORING CONSTANTS
 # ============================================================
-
 PUBLIC_IP_SCORE: float = 10.0
 OUTBOUND_SCORE: float = 5.0
 DANGEROUS_PORT_SCORE: float = 15.0
@@ -58,7 +62,6 @@ BROADCAST_SCORE: float = 15.0
 # ============================================================
 # DETECTION CONSTANTS (IMMUTABLE)
 # ============================================================
-
 _PORT_CATEGORIES = MappingProxyType({
     21: PortCategory.REMOTE_ACCESS,
     22: PortCategory.REMOTE_ACCESS,
@@ -165,8 +168,43 @@ class DangerousNetworkDetector:
     dangerous ports, risky protocols, and DNS abuse.
     
     This class is completely stateless, thread-safe, and resilient 
-    to missing or malformed event data.
+    to missing or malformed event data. It handles exceptions gracefully 
+    to ensure the broader telemetry pipeline never crashes.
     """
+
+    def _extract_timestamp(self, event: dict[str, Any]) -> datetime:
+        """
+        Extracts and normalizes the timestamp from the telemetry event.
+
+        Args:
+            event (dict[str, Any]): Telemetry event dictionary.
+
+        Returns:
+            datetime: A timezone-aware UTC datetime object.
+        """
+        raw_ts = event.get("timestamp") or event.get("@timestamp")
+        
+        if not raw_ts:
+            return datetime.now(timezone.utc)
+            
+        try:
+            if isinstance(raw_ts, datetime):
+                if raw_ts.tzinfo is None:
+                    return raw_ts.replace(tzinfo=timezone.utc)
+                return raw_ts.astimezone(timezone.utc)
+                
+            if isinstance(raw_ts, (int, float)):
+                return datetime.fromtimestamp(raw_ts, tz=timezone.utc)
+                
+            if isinstance(raw_ts, str):
+                # Standardize ISO-8601 formatting for Python's fromisoformat
+                clean_ts = raw_ts.replace("Z", "+00:00")
+                return datetime.fromisoformat(clean_ts).astimezone(timezone.utc)
+                
+        except (ValueError, TypeError, OverflowError) as e:
+            logger.debug(f"Failed to parse timestamp '{raw_ts}': {e}. Falling back to current UTC time.")
+            
+        return datetime.now(timezone.utc)
 
     def _extract_fields(self, event: dict[str, Any]) -> dict[str, Any]:
         """
@@ -198,7 +236,8 @@ class DangerousNetworkDetector:
             "protocol": raw_protocol,
             "direction": raw_direction,
             "domain": raw_domain,
-            "port": port
+            "port": port,
+            "timestamp": self._extract_timestamp(event)
         }
 
     def _detect_public_ip(self, ip_str: str) -> tuple[bool, str]:
@@ -223,8 +262,9 @@ class DangerousNetworkDetector:
             if ip.version == 4 and ip_str == "255.255.255.255":
                 return True, "Broadcast Address"
             
-            # Private, loopback, and link-local are generally benign internally
-            if ip.is_private or ip.is_loopback or ip.is_link_local:
+            # Treat as non-public (benign/internal)
+            if (ip.is_private or ip.is_loopback or ip.is_link_local or 
+                ip.is_unspecified or ip.is_reserved):
                 return False, ""
             
             if ip.is_multicast:
@@ -232,11 +272,9 @@ class DangerousNetworkDetector:
                 
             if ip.is_global:
                 return True, "Public IP"
-                
-            if ip.is_reserved:
-                return True, "Reserved/Invalid IP"
 
         except ValueError:
+            logger.debug(f"Malformed or unresolved IP encountered: {ip_str}")
             # Check if it looks like an unresolved hostname instead of an IP
             if any(c.isalpha() for c in ip_str):
                 return False, "Hostname (Unresolved)"
@@ -396,36 +434,48 @@ class DangerousNetworkDetector:
 
     def _check_reputation(self, target: str) -> bool:
         """
-        Placeholder for future threat intelligence reputation checking.
-        Will cross-reference hostnames and IPs against real-time reputation APIs.
+        Evaluates the target (IP/Hostname) against reputation feeds.
+        
+        TODO: Implement real-time or cached API lookups to Threat Intelligence 
+        services (e.g., VirusTotal, AbuseIPDB, IBM X-Force) to determine if 
+        the target is known to be malicious.
         """
         return False
 
     def _check_geoip(self, ip_str: str) -> str:
         """
-        Placeholder for future GeoIP intelligence.
-        Will map IP addresses to physical locations and flag high-risk regions.
+        Maps the IP address to geographical data.
+        
+        TODO: Integrate a local GeoIP database (like MaxMind GeoLite2) to 
+        identify high-risk regions or impossible travel scenarios without 
+        relying on high-latency remote API calls.
         """
         return ""
 
     def _check_threat_feed(self, indicator: str) -> bool:
         """
-        Placeholder for future threat feed integration (e.g., MISP, OTX).
-        Will evaluate if the indicator is actively tracked in threat feeds.
+        Checks indicators of compromise (IOCs) against ingested threat feeds.
+        
+        TODO: Implement memory-mapped lookups against ingested MISP or OTX 
+        pulse lists to identify documented malicious infrastructure.
         """
         return False
 
     def _check_c2(self, target: str) -> bool:
         """
-        Placeholder for C2 (Command and Control) tracking.
-        Will identify known botnet or C2 infrastructure.
+        Identifies known Command and Control (C2) botnet infrastructure.
+        
+        TODO: Implement matching against specialized C2 tracking lists 
+        (e.g., Feodo Tracker) to immediately flag critical severity events.
         """
         return False
 
     def _check_malware_ports(self, port: int) -> bool:
         """
-        Placeholder for dynamic malware port intelligence.
-        Will identify shifting port patterns used by modern malware families.
+        Cross-references the destination port with dynamic malware port lists.
+        
+        TODO: Implement a dynamic threat-model update system to ingest and 
+        check against shifting port patterns utilized by modern malware families.
         """
         return False
 
@@ -615,6 +665,7 @@ class DangerousNetworkDetector:
         """
         try:
             if not isinstance(event, dict) or not event:
+                logger.warning("Invalid or empty event provided to DangerousNetworkDetector.")
                 return DangerousNetworkResult()
 
             # 1. Field Extraction
@@ -624,6 +675,7 @@ class DangerousNetworkDetector:
             direction_val = fields["direction"]
             domain_val = fields["domain"]
             port_val = fields["port"]
+            timestamp_val = fields["timestamp"]
 
             # 2. Heuristic Detetion
             has_public_ip, ip_reason = self._detect_public_ip(ip_val)
@@ -670,12 +722,16 @@ class DangerousNetworkDetector:
                 risk_points=score,
                 risk_level=risk_level,
                 confidence=confidence,
+                timestamp=timestamp_val,
                 matched_rules=rules,
                 matched_ports=matched_ports,
                 matched_protocols=matched_protocols,
                 reasons=reasons
             )
             
-        except Exception:
-            # Fail securely and silently to preserve runtime stability
+        except (ValueError, TypeError, KeyError) as expected_err:
+            logger.warning(f"Parsing error during network detection: {expected_err}")
+            return DangerousNetworkResult()
+        except Exception as unexpected_err:
+            logger.exception("Unexpected failure in DangerousNetworkDetector.")
             return DangerousNetworkResult()
