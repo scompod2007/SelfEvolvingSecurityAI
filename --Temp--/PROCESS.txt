@@ -48,7 +48,7 @@ CRITICAL
 2.8.8 Severity Metadata
 
 Final severity
-Risk score
+Risk scoreh
 Reason(s) for severity
 Matched indicators
 
