@@ -381,14 +381,14 @@ class DangerousProcessDetector:
         return category != LOLBinCategory.NONE, category
 
     def _detect_script_execution(self, command_line: str) -> Tuple[bool, List[str]]:
-        """Detects execution of script files via command line.[cite: 2]"""
-        matches = []
-        for ext in _KNOWN_SUSPICIOUS_EXTENSIONS:
-            clean_ext = ext.lstrip(".")
-            if clean_ext in ("ps1", "vbs", "bat", "cmd", "js", "vbe", "wsf", "hta"):
-                if ext in command_line: 
-                    matches.append(clean_ext)
-        return len(matches) > 0, matches
+            """Detects execution of script files via command line.[cite: 2]"""
+            matches = []
+            for ext in _KNOWN_SUSPICIOUS_EXTENSIONS:
+                clean_ext = ext.lstrip(".")
+                if clean_ext in ("ps1", "vbs", "bat", "cmd", "js", "vbe", "wsf", "hta", "scr", "pif", "jse"):
+                    if ext in command_line: 
+                        matches.append(clean_ext)
+            return len(matches) > 0, matches
 
     def _detect_encoded_command(self, command_line: str) -> bool:
         """Detects usage of encoded or hidden command line flags.[cite: 2]"""
@@ -423,7 +423,8 @@ class DangerousProcessDetector:
 
     def _detect_public_folder_execution(self, process_path: str) -> bool:
         """Detects process execution from public or universally writable directories.[cite: 2]"""
-        return any(folder in process_path for folder in _KNOWN_PUBLIC_FOLDERS)
+        return any(folder in process_path for folder in _KNOWN_PUBLIC_FOLDERS) or \
+               any(folder in process_path for folder in _KNOWN_DOWNLOAD_FOLDERS)
 
     def _detect_hidden_execution(self, process_path: str, command_line: str) -> bool:
         """Detects execution from hidden directories or explicitly hidden windows.[cite: 2]"""
@@ -746,100 +747,100 @@ class DangerousProcessDetector:
     # ============================================================
 
     def detect(self, event: Dict[str, Any]) -> DangerousProcessResult:
-        """
-        Analyzes a process telemetry event to detect malware, LOLBins, 
-        evasion techniques, and anomalous execution chains.[cite: 2]
+            """
+            Analyzes a process telemetry event to detect malware, LOLBins, 
+            evasion techniques, and anomalous execution chains.[cite: 2]
 
-        Args:
-            event (Dict[str, Any]): Telemetry event dictionary.
+            Args:
+                event (Dict[str, Any]): Telemetry event dictionary.
 
-        Returns:
-            DangerousProcessResult: Result object containing detection details, risk scores, and classifications.
-        """
-        try:
-            if not isinstance(event, dict) or not event:
-                logger.warning("Invalid or empty event provided to DangerousProcessDetector.")
+            Returns:
+                DangerousProcessResult: Result object containing detection details, risk scores, and classifications.
+            """
+            try:
+                if not isinstance(event, dict) or not event:
+                    logger.warning("Invalid or empty event provided to DangerousProcessDetector.")
+                    return DangerousProcessResult()
+
+                # 1. Field Extraction
+                fields = self._extract_fields(event)
+                p_name = fields["process_name"]
+                p_path = fields["process_path"]
+                c_line = fields["command_line"]
+                parent_name = fields["parent_process"]
+                is_signed = fields["is_signed"]
+                integrity = fields["integrity_level"]
+
+                # 2. Heuristic Detection
+                is_malware, mal_cat = self._detect_process_name(p_name)
+                is_lolbin, lol_cat = self._detect_lolbin(p_name)
+                is_script, script_exts = self._detect_script_execution(f"{c_line} {p_name}")
+                is_encoded = self._detect_encoded_command(c_line)
+                is_base64 = self._detect_base64(c_line)
+                susp_args = self._detect_suspicious_arguments(c_line)
+                dl_exec = self._detect_download_execution(c_line)
+                is_temp = self._detect_temp_execution(p_path)
+                is_public = self._detect_public_folder_execution(p_path)
+                hidden_exec = self._detect_hidden_execution(p_path, c_line)
+                masquerading = self._detect_process_masquerading(p_name, p_path)
+                unsigned_bin = self._detect_unsigned_binary(is_signed, p_path)
+                susp_parent = self._detect_suspicious_parent(parent_name, p_name)
+                anomaly_chain = self._detect_process_chain(parent_name, p_name, c_line)
+                priv_abuse = self._detect_privilege_abuse(integrity, c_line)
+                sys_anomaly = self._detect_system_process_anomaly(p_name, parent_name)
+
+                # 3. Execution & Score Aggregation
+                score, rules, reasons = self._calculate_score(
+                    is_malware, mal_cat,
+                    is_lolbin, lol_cat,
+                    is_script, script_exts,
+                    is_encoded, is_base64,
+                    susp_args, dl_exec,
+                    is_temp, is_public,
+                    hidden_exec, masquerading,
+                    unsigned_bin, susp_parent,
+                    anomaly_chain, priv_abuse,
+                    sys_anomaly
+                )
+
+                is_dangerous = score > 0.0
+                risk_level = self._get_risk_level(score)
+                confidence = self._calculate_confidence(rules)
+
+                # Compile explicitly matched attributes for the result payload
+                matched_processes = [p_name] if is_malware or is_lolbin or masquerading or sys_anomaly else []
+                matched_commands = [c_line] if is_encoded or is_base64 or susp_args or dl_exec or is_script else []
+                matched_paths = [p_path] if is_temp or is_public or masquerading or unsigned_bin else []
+                matched_parents = [parent_name] if susp_parent or anomaly_chain or sys_anomaly else []
+                matched_indicators = list(set(script_exts))
+
+                return DangerousProcessResult(
+                    is_dangerous=is_dangerous,
+                    risk_points=score,
+                    risk_level=risk_level,
+                    confidence=confidence,
+                    timestamp=fields["timestamp"],
+                    process_name=p_name,
+                    process_path=p_path,
+                    command_line=c_line,
+                    pid=fields["pid"],
+                    parent_pid=fields["parent_pid"],
+                    parent_process=parent_name,
+                    username=fields["username"],
+                    integrity_level=integrity,
+                    matched_rules=rules,
+                    matched_indicators=matched_indicators,
+                    matched_commands=matched_commands,
+                    matched_processes=matched_processes,
+                    matched_paths=matched_paths,
+                    matched_parents=matched_parents,
+                    matched_behaviors=[],
+                    reasons=reasons
+                )
+                
+            except (ValueError, TypeError, KeyError) as expected_err:
+                logger.warning(f"Parsing error during process detection: {expected_err}")
                 return DangerousProcessResult()
-
-            # 1. Field Extraction
-            fields = self._extract_fields(event)
-            p_name = fields["process_name"]
-            p_path = fields["process_path"]
-            c_line = fields["command_line"]
-            parent_name = fields["parent_process"]
-            is_signed = fields["is_signed"]
-            integrity = fields["integrity_level"]
-
-            # 2. Heuristic Detection
-            is_malware, mal_cat = self._detect_process_name(p_name)
-            is_lolbin, lol_cat = self._detect_lolbin(p_name)
-            is_script, script_exts = self._detect_script_execution(c_line)
-            is_encoded = self._detect_encoded_command(c_line)
-            is_base64 = self._detect_base64(c_line)
-            susp_args = self._detect_suspicious_arguments(c_line)
-            dl_exec = self._detect_download_execution(c_line)
-            is_temp = self._detect_temp_execution(p_path)
-            is_public = self._detect_public_folder_execution(p_path)
-            hidden_exec = self._detect_hidden_execution(p_path, c_line)
-            masquerading = self._detect_process_masquerading(p_name, p_path)
-            unsigned_bin = self._detect_unsigned_binary(is_signed, p_path)
-            susp_parent = self._detect_suspicious_parent(parent_name, p_name)
-            anomaly_chain = self._detect_process_chain(parent_name, p_name, c_line)
-            priv_abuse = self._detect_privilege_abuse(integrity, c_line)
-            sys_anomaly = self._detect_system_process_anomaly(p_name, parent_name)
-
-            # 3. Execution & Score Aggregation
-            score, rules, reasons = self._calculate_score(
-                is_malware, mal_cat,
-                is_lolbin, lol_cat,
-                is_script, script_exts,
-                is_encoded, is_base64,
-                susp_args, dl_exec,
-                is_temp, is_public,
-                hidden_exec, masquerading,
-                unsigned_bin, susp_parent,
-                anomaly_chain, priv_abuse,
-                sys_anomaly
-            )
-
-            is_dangerous = score > 0.0
-            risk_level = self._get_risk_level(score)
-            confidence = self._calculate_confidence(rules)
-
-            # Compile explicitly matched attributes for the result payload
-            matched_processes = [p_name] if is_malware or is_lolbin or masquerading or sys_anomaly else []
-            matched_commands = [c_line] if is_encoded or is_base64 or susp_args or dl_exec or is_script else []
-            matched_paths = [p_path] if is_temp or is_public or masquerading or unsigned_bin else []
-            matched_parents = [parent_name] if susp_parent or anomaly_chain or sys_anomaly else []
-            matched_indicators = list(set(script_exts))
-
-            return DangerousProcessResult(
-                is_dangerous=is_dangerous,
-                risk_points=score,
-                risk_level=risk_level,
-                confidence=confidence,
-                timestamp=fields["timestamp"],
-                process_name=p_name,
-                process_path=p_path,
-                command_line=c_line,
-                pid=fields["pid"],
-                parent_pid=fields["parent_pid"],
-                parent_process=parent_name,
-                username=fields["username"],
-                integrity_level=integrity,
-                matched_rules=rules,
-                matched_indicators=matched_indicators,
-                matched_commands=matched_commands,
-                matched_processes=matched_processes,
-                matched_paths=matched_paths,
-                matched_parents=matched_parents,
-                matched_behaviors=[],
-                reasons=reasons
-            )
-            
-        except (ValueError, TypeError, KeyError) as expected_err:
-            logger.warning(f"Parsing error during process detection: {expected_err}")
-            return DangerousProcessResult()
-        except Exception as unexpected_err:
-            logger.exception("Unexpected failure in DangerousProcessDetector.[cite: 2]")
-            return DangerousProcessResult()
+            except Exception as unexpected_err:
+                logger.exception("Unexpected failure in DangerousProcessDetector.[cite: 2]")
+                return DangerousProcessResult()

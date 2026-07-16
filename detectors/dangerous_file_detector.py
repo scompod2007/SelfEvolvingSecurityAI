@@ -83,9 +83,9 @@ class DangerousFileResult:
     extension: str = ""
     location: str = ""
     risk_points: float = 0.0
+    confidence: float = 0.0
     matched_rules: list[str] = field(default_factory=list)
     reasons: list[str] = field(default_factory=list)
-
 
 class DangerousFileDetector:
     """
@@ -230,6 +230,13 @@ class DangerousFileDetector:
             points, rules, reasons = self._calculate_score(
                 ext_detected, loc_detected, ext_str, loc_str
             )
+            
+            # Calculate confidence based on the number of unique indicators
+            confidence = 0.0
+            if rules:
+                base_confidence = 70.0
+                bonus = (len(set(rules)) - 1) * 15.0
+                confidence = min(100.0, base_confidence + bonus)
 
             return DangerousFileResult(
                 is_dangerous=is_dangerous,
@@ -238,6 +245,7 @@ class DangerousFileDetector:
                 extension=ext_str,
                 location=loc_str,
                 risk_points=points,
+                confidence=confidence, # Added field
                 matched_rules=rules,
                 reasons=reasons,
             )

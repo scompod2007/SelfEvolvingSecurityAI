@@ -144,6 +144,7 @@ class DangerousRegistryResult:
     registry_path: str = ""
     registry_value: str = ""
     risk_points: float = 0.0
+    confidence: float = 0.0
     matched_rules: list[str] = field(default_factory=list)
     matched_keys: list[str] = field(default_factory=list)
     matched_values: list[str] = field(default_factory=list)
@@ -388,6 +389,13 @@ class DangerousRegistryDetector:
                 category, has_dangerous_exec, has_encoded_cmd, has_temp_exec
             )
 
+            # Calculate confidence
+            confidence = 0.0
+            if rules:
+                base_confidence = 75.0
+                bonus = (len(set(rules)) - 1) * 10.0
+                confidence = min(100.0, base_confidence + bonus)
+
             # Compile matched values for the result
             matched_vals = []
             matched_vals.extend(exec_matches)
@@ -403,6 +411,7 @@ class DangerousRegistryDetector:
                 registry_path=norm_path,
                 registry_value=norm_value,
                 risk_points=score,
+                confidence=confidence, # Added field
                 matched_rules=rules,
                 matched_keys=matched_keys_list,
                 matched_values=matched_vals,
