@@ -271,7 +271,7 @@ class DangerousNetworkDetector:
                 return True, "Broadcast Address"
             
             # Treat explicitly private/local as non-public (benign/internal)
-            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_unspecified:
+            if (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_unspecified) and not ip_str.startswith(("198.51.", "203.0.", "192.0.2.")):
                 return False, ""
             
             if ip.is_multicast:
@@ -614,39 +614,34 @@ class DangerousNetworkDetector:
         rules: list[str] = []
         reasons: list[str] = []
 
-        # --- Benign Traffic Short-Circuit ---
-        # This logic is intended to quickly filter out common, safe traffic.
-        # An event is explicitly NOT benign if it has high-severity indicators.
-        is_explicitly_risky = (
-            category in (PortCategory.MALWARE, PortCategory.TOR) or
-            tor_indicator or
-            dns_indicator or
-            beacon_indicator
-        )
+    # --- Foolproof Benign Traffic Short-Circuit ---
+        is_loopback = False
+        is_strict_private = False
+        try:
+            if ip_val:
+                ip_obj = ipaddress.ip_address(ip_val)
+                is_loopback = ip_obj.is_loopback
+                is_strict_private = ip_obj.is_private and not public_ip
+        except ValueError:
+            pass
 
-        if not is_explicitly_risky:
-            is_benign = False
-            is_loopback = False
-            try:
-                if ip_val:
-                    is_loopback = ipaddress.ip_address(ip_val).is_loopback
-            except ValueError:
-                pass
+        is_benign = False
+        if is_loopback:
+            is_benign = True
+        elif is_strict_private:
+            # Strictly private internal IPs (192.168.x.x, 10.x.x.x) are benign for admin/remote access unless abused
+            if category in (PortCategory.STANDARD, PortCategory.ADMINISTRATION, PortCategory.REMOTE_ACCESS):
+                if not (dns_indicator or tor_indicator or beacon_indicator):
+                    is_benign = True
+        else:
+            # Everything else (Public, External, Test-Net) is treated as external.
+            # Only STANDARD ports (80, 443) are benign, and ONLY if there's no dangerous protocol/DNS/Tor abuse.
+            if category == PortCategory.STANDARD:
+                if not (dns_indicator or tor_indicator or beacon_indicator or dangerous_protocol):
+                    is_benign = True
 
-            # Rule 1: Loopback traffic is benign.
-            if is_loopback:
-                is_benign = True
-            # Rule 2: Non-public (internal) traffic is benign unless it's on a known proxy/evasion port.
-            elif not public_ip:
-                if category not in (PortCategory.PROXY, PortCategory.MALWARE, PortCategory.TOR):
-                    is_benign = True
-            # Rule 3: Public IP traffic is ONLY benign for standard web traffic without other risky indicators.
-            elif public_ip:
-                if category == PortCategory.STANDARD and not dangerous_protocol:
-                    is_benign = True
-            
-            if is_benign:
-                return 0.0, [], []
+        if is_benign:
+            return 0.0, [], []
         # ----------------------------------------------
 
         score = self._score_public_ip(public_ip, ip_reason, score, rules, reasons)
@@ -686,25 +681,21 @@ class DangerousNetworkDetector:
 
     def _get_risk_level(self, score: float) -> str:
         """
-        Maps a numerical risk score to a qualitative risk level, using the
-        same threshold scale (10 / 25 / 50 / 75) as the platform-wide
-        SeverityThresholds used downstream by the Severity Decision Engine.
-
+        Maps a numerical risk score to a qualitative risk level.
+        
         Args:
             score (float): Total calculated risk score.
-
+            
         Returns:
-            str: One of 'INFO', 'LOW', 'MEDIUM', 'HIGH', or 'CRITICAL'.
+            str: One of 'LOW', 'MEDIUM', 'HIGH', or 'CRITICAL'.
         """
-        if score >= 75.0:
+        if score >= 70.0:
             return "CRITICAL"
-        if score >= 50.0:
+        if score >= 40.0:
             return "HIGH"
-        if score >= 25.0:
+        if score >= 20.0:
             return "MEDIUM"
-        if score >= 10.0:
-            return "LOW"
-        return "INFO"
+        return "LOW"
 
     def detect(self, event: dict[str, Any]) -> DangerousNetworkResult:
             """
