@@ -1,75 +1,57 @@
-2.8.1 Severity Configuration
+confidence_engine/
+│
+├── confidence_engine.py
+├── confidence_config.py
+├── rule_weights.py
+├── whitelist.py
+├── ai_adjustment.py
+└── __init__.py
+===============================================
+2.9.1 Confidence Calculation
 
-Severity levels (INFO, LOW, MEDIUM, HIGH, CRITICAL)
-Configurable score thresholds
-Enable/disable severity engine
+Description
 
-2.8.2 Risk Scoring
+Calculate confidence (0–100%)
+Based on triggered indicators/rules
+More evidence → higher confidence
+Independent from risk score
 
-Base risk score calculation
-Score normalization (0–100)
-Configurable weights
+2.9.2 Rule Weighting
 
-2.8.3 Event Weighting
+Description
 
-Assign weights based on event type
-Different weights for Process, File, Network, Registry events
-Combine weights into final risk score
+Assign confidence weights to each detection rule
+Different rules contribute differently
+Example:
+Public IP → +5%
+Dangerous Port → +15%
+Process Injection → +30%
+C2 Connection → +40%
 
-2.8.4 Dangerous File Detection
+2.9.3 Whitelist Adjustment
 
-Detect suspicious extensions (.exe, .dll, .sys, .ps1, .bat, .vbs, .js, .scr, etc.)
-Detect execution from suspicious locations (Temp, AppData, Startup, Downloads)
-Increase severity accordingly
+Description
 
-2.8.5 Dangerous Registry Detection
+Reduce confidence for trusted activity
+Ignore known safe software
+Trusted IPs
+Trusted domains
+Trusted processes
+Trusted certificates
+Prevent false positives
 
-Detect persistence locations (Run, RunOnce, Services, Winlogon, Image File Execution Options, etc.)
-Detect suspicious registry modifications
-Increase severity accordingly
+2.9.4 AI Adjustment Support
 
-2.8.6 Dangerous Network Detection
+Description
 
-Detect suspicious ports
-Detect public IP connections
-Detect outbound connections to risky destinations
-Detect uncommon protocols if applicable
-Increase severity accordingly
+Placeholder for future AI integration
+AI can increase confidence
+AI can decrease confidence
+Threat intelligence support
+Machine learning confidence adjustment
+Analyst feedback integratio
 
-2.8.7 Final Severity Decision
-
-Convert total risk score into severity:
-INFO
-LOW
-MEDIUM
-HIGH
-CRITICAL
-
-2.8.8 Severity Metadata
-
-Final severity
-Risk scoreh
-Reason(s) for severity
-Matched indicators
-
-2.8.9 Manual Testing
-
-Benign events
-Dangerous file events
-Dangerous registry events
-Dangerous network events
-Mixed scenarios
-Stress test
----
-
-### 2.8 Severity Engine
-
-* Risk scoring
-* Event weighting
-* Dangerous file detection
-* Dangerous registry detection
-* Dangerous network detection
-
+NEXT TESTER
 ---
 
 ### 2.9 Confidence Engine
