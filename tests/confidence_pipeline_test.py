@@ -6,8 +6,7 @@ Part 2.9.x - Integrated Confidence Engine Testing
 
 This module is a standalone, research-grade integration testing
 framework designed to validate the entire confidence scoring pipeline.
-
-It tests the integration of:
+        
 1. ConfidenceEngine
 2. RuleWeightingEngine
 3. WhitelistAdjustmentEngine
@@ -57,7 +56,7 @@ try:
         WhitelistAdjustmentEngine,
         WhitelistAdjustmentResult
     )
-    from confidence_engine.ai_adjustment_support import (
+    from ai.ai_adjustment_support import (
         AIAdjustmentSupportEngine,
         AIAdjustmentResult
     )
