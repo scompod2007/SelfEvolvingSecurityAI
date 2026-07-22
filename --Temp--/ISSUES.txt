@@ -147,3 +147,215 @@ Informational:   1   (Issue 9)
 Repository Health Score: 55/100
 ```
 The score is pulled down almost entirely by the `filters/`, `engine/`, `detectors/`, `scoring/` packages being absent from this specific upload (Issues 3–4), and by `confidence_pipeline_test.py` being an incomplete/truncated file (Issues 1–2) — not by defects in the actual `confidence_engine`/`ai` production modules, which are internally consistent and match their test harness's assumptions exactly.
+
+=====================================================================================================================================================================================
+
+🔴 Critical Issue 1 — Wrong import path
+
+Your tester still imports
+
+from ai.ai_adjustment_support import ...
+
+but the rest imports from
+
+confidence_engine.*
+
+Earlier versions imported everything from confidence_engine.
+
+If ai isn't a real package, this immediately breaks.
+
+🔴 Critical Issue 2 — PYTHONPATH bootstrap is wrong
+
+Current code
+
+sys.path.insert(
+    0,
+    os.path.abspath(
+        os.path.join(os.path.dirname(__file__), ".")
+    )
+)
+
+This inserts
+
+tests/
+
+instead of
+
+SelfEvolvingSecurityAI/
+
+It should be
+
+sys.path.insert(
+    0,
+    os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..")
+    )
+)
+
+This exact problem was identified in your project audit.
+
+🔴 Critical Issue 3 — RuleWeightResult type mismatch
+
+Your output shows
+
+Field 'RuleWeightResult.weighted_confidence'
+expected float
+got int
+
+multiple times.
+
+Either
+
+Production returns
+
+weighted_confidence=0
+
+instead of
+
+0.0
+
+or
+
+The tester is too strict.
+
+Research integration tests should normally accept
+
+int
+float
+
+for numeric confidence values.
+
+🟠 Issue 4 — Only 22 / 38 pass
+
+Current output
+
+TOTAL:
+22/38
+
+means the tester is still failing validation.
+
+🟠 Issue 5 — API validation still too strict
+
+You're validating
+
+expected_type is float
+
+instead of validating
+
+numbers.Real
+
+or
+
+(int, float)
+
+This causes harmless integer values to fail.
+
+🟠 Issue 6 — Pipeline assumptions still exist
+
+Although improved,
+
+the tester still assumes
+
+Confidence
+
+↓
+
+Whitelist
+
+↓
+
+AI
+
+through
+
+PipelineResult.final_confidence
+
+and reporting logic.
+
+This isn't fatal,
+
+but it is still an architectural assumption.
+
+🟠 Issue 7 — No automatic API discovery
+
+Current tester manually defines contracts like
+
+CONFIDENCE_RESULT_CONTRACT
+
+WEIGHT_RESULT_CONTRACT
+
+AI_RESULT_CONTRACT
+
+A research-grade tester should instead inspect
+
+dataclasses.fields()
+
+__annotations__
+
+from production.
+
+Otherwise every production change requires editing the tester.
+
+🟠 Issue 8 — Missing pipeline adapter abstraction
+
+Current tester directly knows
+
+ConfidenceEngine
+
+RuleWeightingEngine
+
+WhitelistAdjustmentEngine
+
+AIAdjustmentSupportEngine
+
+The better architecture is
+
+Pipeline.run(...)
+
+or
+
+EngineRegistry
+
+Your earlier version already had this architecture.
+
+🟠 Issue 9 — Random stress still dominates
+
+Although deterministic fuzz exists,
+
+random fuzz is still the primary stress mechanism.
+
+Research testing usually prefers
+
+Deterministic Fuzz
+
+↓
+
+Mutation Testing
+
+↓
+
+Random Fuzz
+🟠 Issue 10 — Coverage still below research grade
+
+You now have roughly
+
+38 scenarios
+
+Earlier recommendations were
+
+80–120
+
+Research systems typically include:
+
+mutation testing
+concurrency testing
+replay testing
+regression packs
+compatibility packs
+API evolution packs
+schema evolution
+serialization tests
+deserialization tests
+performance regression
+
+Your earlier registry-based design supported this direction.
