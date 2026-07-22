@@ -1,0 +1,149 @@
+Only one project (`FILES.zip`) is present in this upload — there's no second/previous version to diff against, so I can't do a true "old API vs current API" comparison. What I *can* do, and will do exhaustively, is a full empirical audit of the single codebase you've given me: compile every file, actually trace every import, actually reproduce the `No module named confidence_engine` error, and check every public API against every consumer of it. Let me run this for real rather than recall it.Every file compiles cleanly — zero SyntaxErrors/IndentationErrors anywhere in the repo. Now let's reproduce the actual `No module named confidence_engine` failure mode empirically.This is a major finding — let me verify it, since several test files reference packages that may not exist in this ZIP at all.Confirmed — `filters/`, `engine/`, `detectors/`, and `scoring/` packages are **entirely absent from this ZIP**, even though four test files import from them. Let's verify each of those broken imports individually and pin down exact tracebacks.Confirmed: `confidence_engine`/`ai` production code is correct — root cause is purely invocation path, not the engines. Now let me check for any `setup.py`/`pyproject.toml` and confirm none exists, plus check line-ending consistency (CRLF) across the repo, which affects some tooling.All field names in the tester's `CONFIDENCE_*`, `RULEWEIGHT_*`, `WHITELIST_*`, and `AI_*` specs match the real dataclasses exactly — confirmed empirically, zero renamed/removed fields. Now the full audit.
+
+# REPOSITORY AUDIT — SINGLE PROJECT VERSION (no prior version was uploaded to diff against)
+
+Note up front: only one project (`FILES.zip`) is present in this conversation. There is no "old API vs current API" to diff — Phase 6/7's comparison instructions can't literally be executed. What follows is a 100% empirical audit of the one version I have: every `.py` file was `py_compile`'d, every import was traced and actually executed, and every dataclass was reflected at runtime to verify the tester's assumptions. Nothing below is inferred from memory.
+
+---
+
+**Issue 1 — Severity: Critical**
+**Location:** `tests/confidence_pipeline_test.py`, ran from `tests/` directory or via `python tests/confidence_pipeline_test.py` from root
+**Root Cause:** The file has no `sys.path` bootstrap (unlike every sibling in `tests/`, e.g. `manual_filefilter_test.py` line 6, which does `sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))`). When Python runs a script directly, only the script's own directory is placed on `sys.path[0]`, not the project root — so `confidence_engine` and `ai` are not importable.
+**Impact:** Reproduced directly:
+```
+CRITICAL ERROR: Production engines not found. Details: No module named 'confidence_engine'
+```
+This is not caused by a folder move, rename, missing `__init__.py`, or setup.py/pyproject.toml (none exist in this project — verified, there is no packaging metadata at all). It is caused solely by the missing `sys.path.insert(...)` line combined with direct-script invocation.
+**Fix:** Add, immediately after the top-level imports and before the `try:` block:
+```python
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+```
+(also add `import os` to the import list, since it isn't currently imported in this file).
+
+---
+
+**Issue 2 — Severity: Critical**
+**Location:** `tests/confidence_pipeline_test.py`, line 533 (physical end of file)
+**Root Cause:** The file is truncated. It ends mid-class:
+```python
+    def _validate_float_bounds(self, val, min_val, max_val, field_name, errors) -> None:
+        if math.isnan(val) or math.isinf(val):
+            errors.append(...)
+        elif not (min_val <= val <= max_val):
+            errors.append(...)
+```
+Verified: `grep -n "^if __name__"` returns nothing; `grep -n "^def main"` returns nothing. There is no scenario-generation, no execution loop, no CSV/JSON writer, no console report — despite the module docstring promising all of these.
+**Impact:** Confirmed by actually running it correctly (`PYTHONPATH=. python3 -m tests.confidence_pipeline_test` from root): exits 0 with **zero output**. Even when import resolution is fixed (Issue 1), the script does nothing productive — it only defines classes.
+**Fix:** Requires adding the missing scenario builders, execution loop, stress tests, and `main()`/`if __name__ == "__main__":` entry point. (I already completed this in this conversation — see the `confidence_pipeline_test.py` I built earlier; the field specs, `OrchestrationPolicy`, and `PipelineAdapter` already present were verified correct and reused as-is, nothing in them needed to change.)
+
+---
+
+**Issue 3 — Severity: Critical**
+**Location:** `tests/test_file_filter_v1.py` line 13; `tests/manual_testing_engine.py` lines 59–66
+**Root Cause:** These import `filters.filters`, `detectors.dangerous_process_detector`, `detectors.dangerous_file_detector`, `detectors.dangerous_registry_detector`, `detectors.dangerous_network_detector`, `scoring.event_weighting`, `scoring.severity_decision`, `scoring.severity_metadata`. **None of `filters/`, `detectors/`, or `scoring/` exist anywhere in this ZIP** (confirmed: `find . -maxdepth 1` shows only `ai`, `collectors`, `confidence_engine`, `database`, `tests`). `tests/testerror.txt` (a directory listing you included) shows these folders exist on your actual machine but were not included in this upload.
+**Impact:** Reproduced — both files crash with an **unhandled** `ModuleNotFoundError` (no try/except guard, unlike other test files):
+```
+File "tests/test_file_filter_v1.py", line 13, in <module>
+    from filters.filters import FilterEngine, FileFilter
+ModuleNotFoundError: No module named 'filters'
+```
+```
+File "tests/manual_testing_engine.py", line 59, in <module>
+    import detectors.dangerous_process_detector as process_detector_mod
+ModuleNotFoundError: No module named 'detectors'
+```
+**Fix:** Not a code bug — these packages must be included in the ZIP/repo you upload/deploy from. No fix is possible without the actual `filters/`, `detectors/`, `scoring/`, and `engine/` source (see Issue 4).
+
+---
+
+**Issue 4 — Severity: High**
+**Location:** `tests/manual_filefilter_test.py`, `manual_networkfilter_test.py`, `manual_processfilter_test.py`, `manual_registryfilter_test.py` (all import `filters.filters`), `test_filter_engine_manual.py` (imports `engine.filter_engine`), `test_duplicate_detector_manual.py` (imports `filters.filter_config`, `filters.event_fingerprint`, `filters.duplicate_cache`, `filters.duplicate_detector`)
+**Root Cause:** Same as Issue 3 — `filters/` and `engine/` packages missing from ZIP.
+**Impact:** All five gracefully print their own guard message and `sys.exit(1)`, e.g.:
+```
+Error: Could not import FilterEngine or FileFilter.
+Please ensure this script is run from the project's root directory,
+and that the project structure (filters/__init__.py) is correct.
+```
+Their guard message is misleading — it blames "run from the wrong directory," but the real issue is the package is absent, not a cwd problem (confirmed: adding correct sys.path/cwd does not fix this since the directory doesn't exist).
+**Fix:** Same as Issue 3 — supply the missing packages.
+
+---
+
+**Issue 5 — Severity: Medium**
+**Location:** `collectors/registry_monitor.py`, lines 24–32
+**Root Cause:**
+```python
+from ctypes import (
+    WinDLL,
+    ...
+)
+from ctypes import wintypes
+```
+`WinDLL` and `wintypes` are Windows-only members of `ctypes`. Verified on this (Linux) environment:
+```
+ImportError: cannot import name 'WinDLL' from 'ctypes'
+```
+**Impact:** `registry_monitor.py` cannot import on non-Windows systems at all — this is by design (the module docstring says "Native Windows API Implementation"), not a regression, but it means this module (and anything that imports it) can never run in this container/CI environment.
+**Fix:** No fix needed if this is intentionally Windows-only and only ever deployed on Windows hosts. If cross-platform execution is required, this file needs a platform guard (`if sys.platform == "win32":`) — but that would be a functional change outside the "don't redesign" constraint, so flagging only.
+
+---
+
+**Issue 6 — Severity: Medium**
+**Location:** `database/check.py` line 1; `collectors/file_monitor.py` line 27; `collectors/network_monitor.py` line 50; `collectors/process_monitor.py` line 23; `collectors/registry_monitor.py` line 36
+**Root Cause:** All five use absolute imports (`from database.db import ...`, `from collectors.event_types import ...`) with **no `sys.path` bootstrap**, unlike the `tests/` scripts which do have one. These only resolve if the project root is already on `sys.path` (e.g. via `PYTHONPATH` or `python -m` invocation from root).
+**Impact:** Reproduced — running any of them directly fails:
+```
+$ python3 database/check.py
+ModuleNotFoundError: No module named 'database.db'; 'database' is not a package
+$ python3 collectors/file_monitor.py
+ModuleNotFoundError: No module named 'database'
+```
+Note the *different* error text for `check.py` ("'database' is not a package") vs the collectors ("No module named 'database'") — this is because running `check.py` directly puts `database/` itself on `sys.path[0]`, so Python partially resolves `database` as the current directory rather than a package, producing a more confusing message than a flat "not found."
+**Fix:** These are not part of the Part 2.9.x confidence-engine scope, so I'm not modifying them per your instruction not to touch unrelated files — flagging only. If you want them runnable standalone, each needs the same bootstrap line already used in `tests/manual_*.py`.
+
+---
+
+**Issue 7 — Severity: Low**
+**Location:** `database/db.py` line 3 (`DB_PATH = "data/telemetry.db"`) and `database/database.py` line 7 (`DB_PATH = "data/telemetry.db"`)
+**Root Cause:** The same constant is independently duplicated in two modules instead of one being imported from the other.
+**Impact:** No current runtime failure — both currently agree on the same path — but it's a duplicate-definition drift risk: if one is edited (e.g. to change the DB location) and the other isn't, `check.py`/collectors (which use `db.py`) and `database.py`'s `create_database()` would silently point at different files.
+**Fix:** Not touching per scope (unrelated to confidence engine testing) — flagging only.
+
+---
+
+**Issue 8 — Severity: Low (informational, not a bug)**
+**Location:** Every `.py` file in the repo
+**Root Cause:** All source files use CRLF line endings uniformly (verified with `file`). Fully consistent — this is a Windows-authored project, not an inconsistency.
+**Impact:** None currently observed; `py_compile` succeeded on every file with zero errors. Noting only because CRLF can occasionally trip up non-Windows diff/lint tooling.
+**Fix:** None required.
+
+---
+
+**Issue 9 — Severity: Informational**
+**Location:** `tests/` package as a whole
+**Root Cause:** No `tests/__init__.py` exists. `python3 -m tests.confidence_pipeline_test` from root still succeeds (exit 0) because Python 3 treats `tests/` as an implicit PEP 420 namespace package.
+**Impact:** None — this is not a bug, just worth knowing that `-m tests.<module>` works today only due to namespace-package fallback, not an explicit package declaration.
+**Fix:** None required unless you specifically want `tests` to be an explicit regular package.
+
+---
+
+## Verified NOT broken (confirmed empirically, contradicts nothing you reported)
+
+- All 27 `.py` files compile cleanly — zero `SyntaxError`/`IndentationError` anywhere.
+- `confidence_engine.confidence_engine`, `confidence_engine.rule_weighting`, `confidence_engine.whitelist_adjustment`, `ai.ai_adjustment_support` import and execute correctly when the path is set up right (`PYTHONPATH=.`) — `ConfidenceEngine().calculate(...)` returns a valid `ConfidenceResult` with no errors.
+- Every field name/type referenced in `confidence_pipeline_test.py`'s `CONFIDENCE_CORE/OPTIONAL`, `RULEWEIGHT_OPTIONAL`, `WHITELIST_CORE/OPTIONAL`, `AI_CORE/OPTIONAL` specs was checked via `dataclasses.fields()` reflection against the real classes — **all match exactly**, no renamed/removed/added fields, no API drift between the tester and production.
+- `confidence_engine/__init__.py` and `ai/__init__.py` are correct as-is (the latter is intentionally empty; `ai.ai_adjustment_support` is still directly importable).
+- No `setup.py`/`pyproject.toml`/`setup.cfg` exist anywhere — confirms this isn't an editable-install or packaging-metadata problem, it's a pure sys.path/PYTHONPATH project.
+
+```
+Critical Issues: 3   (Issue 1, 2, 3)
+High Issues:     1   (Issue 4)
+Medium Issues:   2   (Issue 5, 6)
+Low Issues:      2   (Issue 7, 8)
+Informational:   1   (Issue 9)
+
+Repository Health Score: 55/100
+```
+The score is pulled down almost entirely by the `filters/`, `engine/`, `detectors/`, `scoring/` packages being absent from this specific upload (Issues 3–4), and by `confidence_pipeline_test.py` being an incomplete/truncated file (Issues 1–2) — not by defects in the actual `confidence_engine`/`ai` production modules, which are internally consistent and match their test harness's assumptions exactly.
