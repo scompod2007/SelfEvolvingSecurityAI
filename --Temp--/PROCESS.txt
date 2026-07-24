@@ -1,149 +1,137 @@
-(.venv) PS E:\PROJECT\SelfEvolvingSecurityAI> python tests/confidence_pipeline_test.py
-
-================================================================================
- STRESS TESTS
-================================================================================
-[Random Fuzz] PASS (500 iterations, seed=1337)
-[Deterministic Fuzz] PASS
-[Memory Test] PASS (peak=0.01MB, budget=50.0MB)
-[Performance Test] PASS (elapsed=0.138s, budget=15.0s)
-
-
-================================================================================
- INTEGRATED CONFIDENCE ENGINE TEST REPORT
-================================================================================
-Engine metadata:
-  - ConfidenceEngine: vUnknown (Author: Unknown)
-  - RuleWeighting: vUnknown (Author: Unknown)
-  - Whitelist: vUnknown (Author: Unknown)
-
-[Confidence Engine] 2/5 passed
-    [FAIL] no_evidence (0.076ms) final_confidence=0.00 adjustment=None
-        - Field 'RuleWeightResult.weighted_confidence' expected float, got int
-    [PASS] single_rule_match (0.056ms) final_confidence=20.00 adjustment=None
-    [PASS] rules_and_indicators_mixed (0.042ms) final_confidence=67.23 adjustment=None
-    [FAIL] non_dict_evidence_ignored (0.030ms) final_confidence=0.00 adjustment=None
-        - Field 'RuleWeightResult.weighted_confidence' expected float, got int
-    [FAIL] large_unique_evidence_saturation (0.038ms) final_confidence=100.00 adjustment=None
-        - Field 'RuleWeightResult.weighted_confidence' expected float, got int
-
-[Rule Weighting] 2/5 passed
-    [PASS] known_high_severity_rules (0.025ms) final_confidence=0.00 adjustment=None
-    [FAIL] unknown_rule_names (0.019ms) final_confidence=0.00 adjustment=None
-        - Field 'RuleWeightResult.weighted_confidence' expected float, got int
-    [FAIL] empty_rule_list (0.016ms) final_confidence=0.00 adjustment=None
-        - Field 'RuleWeightResult.weighted_confidence' expected float, got int
-    [PASS] mixed_known_and_unknown (0.022ms) final_confidence=0.00 adjustment=None
-    [FAIL] wrong_type_input (0.022ms) final_confidence=0.00 adjustment=None
-        - Field 'RuleWeightResult.weighted_confidence' expected float, got int
-
-[Whitelist] 5/5 passed
-    [PASS] trusted_process_match (0.042ms) final_confidence=0.00 adjustment=None
-    [PASS] trusted_domain_suffix_match (0.028ms) final_confidence=5.00 adjustment=None
-    [PASS] trusted_publisher_match (0.028ms) final_confidence=5.00 adjustment=None
-    [PASS] no_whitelist_match (0.024ms) final_confidence=20.00 adjustment=None
-    [PASS] multiple_trusted_categories_stacked (0.029ms) final_confidence=0.00 adjustment=None
-
-[AI Adjustment] 5/5 passed
-    [PASS] analyst_override_wins_priority (0.041ms) final_confidence=90.00 adjustment=Analyst Override
-    [PASS] ai_delta_adjustment (0.037ms) final_confidence=32.50 adjustment=AI Adjustment
-    [PASS] no_adjustments_provided (0.022ms) final_confidence=20.00 adjustment=None
-    [PASS] disabled_ai_flag_ignored (0.030ms) final_confidence=20.00 adjustment=None
-    [PASS] inconsistent_source_flagged_not_rejected (0.028ms) final_confidence=28.00 adjustment=ML Adjustment
-
-[Metadata] 1/3 passed
-    [PASS] reason_and_source_metadata_preserved (0.030ms) final_confidence=30.00 adjustment=AI Adjustment
-    [FAIL] duplicate_metadata_keys_ignored_safely (0.027ms) final_confidence=5.00 adjustment=AI Adjustment
-        - Field 'RuleWeightResult.weighted_confidence' expected float, got int
-    [FAIL] unrecognized_fields_preserved_as_extra_metadata (0.021ms) final_confidence=0.00 adjustment=None
-        - Field 'RuleWeightResult.weighted_confidence' expected float, got int
-
-[Malformed Inputs] 0/5 passed
-    [FAIL] none_raw_evidence (0.024ms) final_confidence=0.00 adjustment=None
-        - Field 'RuleWeightResult.weighted_confidence' expected float, got int
-    [FAIL] wrong_type_all_fields (0.020ms) final_confidence=0.00 adjustment=None
-        - Field 'RuleWeightResult.weighted_confidence' expected float, got int
-    [FAIL] nan_and_inf_ai_adjustment (0.055ms) final_confidence=0.00 adjustment=None
-        - Field 'RuleWeightResult.weighted_confidence' expected float, got int
-    [FAIL] out_of_range_override (0.019ms) final_confidence=0.00 adjustment=None
-        - Field 'RuleWeightResult.weighted_confidence' expected float, got int
-    [FAIL] boolean_values_in_evidence_lists (0.020ms) final_confidence=0.00 adjustment=None
-        - Field 'RuleWeightResult.weighted_confidence' expected float, got int
-
-[Normalization Tests] 4/5 passed
-    [PASS] case_and_whitespace_insensitive_rules (0.025ms) final_confidence=36.00 adjustment=None
-    [PASS] process_path_basename_normalization (0.025ms) final_confidence=0.00 adjustment=None
-    [PASS] url_to_hostname_domain_normalization (0.046ms) final_confidence=5.00 adjustment=None
-    [PASS] publisher_legal_suffix_stripping (0.026ms) final_confidence=5.00 adjustment=None
-    [FAIL] source_alias_normalization (0.025ms) final_confidence=5.00 adjustment=ML Adjustment
-        - Field 'RuleWeightResult.weighted_confidence' expected float, got int
-
-[Boundary Tests] 3/5 passed
-    [FAIL] confidence_zero_boundary (0.016ms) final_confidence=0.00 adjustment=None
-        - Field 'RuleWeightResult.weighted_confidence' expected float, got int
-    [PASS] max_delta_adjustment_boundary (0.027ms) final_confidence=70.00 adjustment=AI Adjustment
-    [PASS] max_delta_adjustment_just_over_boundary_rejected (0.026ms) final_confidence=20.00 adjustment=None
-    [FAIL] confidence_override_exact_100_boundary (0.023ms) final_confidence=100.00 adjustment=Confidence Override
-        - Field 'RuleWeightResult.weighted_confidence' expected float, got int
-    [PASS] whitelist_max_reduction_cap_boundary (0.035ms) final_confidence=0.00 adjustment=None
-
-TOTAL: 22/38 scenarios passed
-(.venv) PS E:\PROJECT\SelfEvolvingSecurityAI> 
-===============================================
-2.9.1 Confidence Calculation
+2.10.1 Correlation ID Generator
 
 Description
 
-Calculate confidence (0–100%)
-Based on triggered indicators/rules
-More evidence → higher confidence
-Independent from risk score
+Generate unique correlation IDs for related security events.
 
-2.9.2 Rule Weighting
+Features
 
-Description
-
-Assign confidence weights to each detection rule
-Different rules contribute differently
-Example:
-Public IP → +5%
-Dangerous Port → +15%
-Process Injection → +30%
-C2 Connection → +40%
-
-2.9.3 Whitelist Adjustment
+UUID generation
+Deterministic ID support (optional)
+Timestamp integration
+Collision prevention
+Correlation metadata
+2.10.2 Event Relationship Engine
 
 Description
 
-Reduce confidence for trusted activity
-Ignore known safe software
-Trusted IPs
-Trusted domains
-Trusted processes
-Trusted certificates
-Prevent false positives
+Identify relationships between multiple telemetry events.
 
-2.9.4 AI Adjustment Support
+Features
+
+Parent-child process correlation
+File → Process linking
+Network → Process linking
+Registry → Process linking
+Multi-source event association
+2.10.3 Session Grouping Engine
 
 Description
 
-Placeholder for future AI integration
-AI can increase confidence
-AI can decrease confidence
-Threat intelligence support
-Machine learning confidence adjustment
-Analyst feedback integratio
+Group related events into logical activity sessions.
 
-NEXT TESTER
----
+Features
 
-### 2.9 Confidence Engine
+Session creation
+Session expiration
+Time-window grouping
+Parent process sessions
+User-based sessions
+2.10.4 Attack Chain Correlator
 
-* Confidence calculation
-* Rule weighting
-* Whitelist adjustment
-* AI adjustment support
+Description
 
+Build complete attack chains from correlated telemetry.
+
+Features
+
+Sequential event linking
+Kill-chain reconstruction
+Multi-stage attack detection
+Timeline generation
+Attack path reconstruction
+2.10.5 Temporal Correlation Engine
+
+Description
+
+Correlate events using timestamps and configurable time windows.
+
+Features
+
+Sliding windows
+Time proximity analysis
+Burst detection
+Delayed event matching
+Event ordering
+2.10.6 Context Correlation Engine
+
+Description
+
+Correlate events using shared contextual attributes.
+
+Features
+
+Process ID correlation
+User correlation
+Host correlation
+IP correlation
+File hash correlation
+Command-line correlation
+2.10.7 Cross-Source Correlation Engine
+
+Description
+
+Combine telemetry from multiple collectors into unified incidents.
+
+Features
+
+Process + File
+Process + Network
+Process + Registry
+File + Network
+Multi-source evidence aggregation
+2.10.8 Correlation Scoring Engine
+
+Description
+
+Calculate the strength of relationships between correlated events.
+
+Features
+
+Correlation score
+Confidence weighting
+Relationship strength
+Rule-based scoring
+Score normalization
+2.10.9 Incident Builder
+
+Description
+
+Convert correlated events into structured security incidents.
+
+Features
+
+Incident creation
+Event aggregation
+Severity aggregation
+Confidence aggregation
+Incident metadata
+2.10.10 Correlation Engine Tester
+
+Description
+
+Comprehensive integration and stress testing for the Correlation Engine.
+
+Features
+
+Unit testing
+Integration testing
+Stress testing
+Fuzz testing
+Boundary testing
+Performance testing
+Memory testing
+Large attack-chain simulation
 ---
 
 ### 2.10 Correlation Engine

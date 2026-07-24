@@ -235,7 +235,7 @@ class RuleWeightingEngine:
             RuleWeightResult: The populated result object.
         """
         return RuleWeightResult(
-            weighted_confidence=weighted_confidence,
+            weighted_confidence=float(weighted_confidence),
             matched_rule_count=matched_rule_count,
             recognized_rule_count=recognized_rule_count,
             unknown_rule_count=unknown_rule_count,
