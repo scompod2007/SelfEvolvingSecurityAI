@@ -1,172 +1,130 @@
-2.10.1 Correlation ID Generator
+4.2 Process Monitor Integration
 
-Description
+Connect: collectors/process_monitor.py
 
-Generate unique correlation IDs for related security events.
+Tasks
 
-Features
+Send process events to filter_process()
+Preserve parent PID information
+Preserve command line and executable path
+Forward accepted events
 
-UUID generation
-Deterministic ID support (optional)
-Timestamp integration
-Collision prevention
-Correlation metadata
-2.10.2 Event Relationship Engine
+Create
 
-Description
+integration/process_integration.py
 
-Identify relationships between multiple telemetry events.
+Test
 
-Features
+tests/test_process_integration.py
+4.3 Network Monitor Integration
 
-Parent-child process correlation
-File → Process linking
-Network → Process linking
-Registry → Process linking
-Multi-source event association
-2.10.3 Session Grouping Engine
+Connect: collectors/network_monitor.py
 
-Description
+Tasks
 
-Group related events into logical activity sessions.
+Send network events to filter_network()
+Preserve source/destination IPs and ports
+Preserve protocol and direction
+Forward accepted events
 
-Features
+Create
 
-Session creation
-Session expiration
-Time-window grouping
-Parent process sessions
-User-based sessions
-2.10.4 Attack Chain Correlator
+integration/network_integration.py
 
-Description
+Test
 
-Build complete attack chains from correlated telemetry.
+tests/test_network_integration.py
+4.4 Registry Monitor Integration
 
-Features
+Connect: collectors/registry_monitor.py
 
-Sequential event linking
-Kill-chain reconstruction
-Multi-stage attack detection
-Timeline generation
-Attack path reconstruction
-2.10.5 Temporal Correlation Engine
+Tasks
 
-Description
+Send registry events to filter_registry()
+Preserve hive, key, value name, and operation
+Forward accepted events
 
-Correlate events using timestamps and configurable time windows.
+Create
 
-Features
+integration/registry_integration.py
 
-Sliding windows
-Time proximity analysis
-Burst detection
-Delayed event matching
-Event ordering
-2.10.6 Context Correlation Engine
+Test
 
-Description
+tests/test_registry_integration.py
+4.5 Unified Integration Pipeline
 
-Correlate events using shared contextual attributes.
+Create a single coordinator that receives events from all collectors.
 
-Features
+Create
 
-Process ID correlation
-User correlation
-Host correlation
-IP correlation
-File hash correlation
-Command-line correlation
-2.10.7 Cross-Source Correlation Engine
+integration/integration_pipeline.py
 
-Description
+Responsibilities
 
-Combine telemetry from multiple collectors into unified incidents.
+Accept events from any collector
+Route through MasterFilterDispatcher
+Update StatisticsEngine
+Feed CorrelationEngine
+Feed ConfidenceEngine
+Return a unified processing result
 
-Features
+Public API
 
-Process + File
-Process + Network
-Process + Registry
-File + Network
-Multi-source evidence aggregation
-2.10.8 Correlation Scoring Engine
+process_event(event: dict) -> dict
+process_batch(events: list[dict]) -> list[dict]
+4.6 Integration Models
 
-Description
+Create shared integration result objects.
 
-Calculate the strength of relationships between correlated events.
+Create
 
-Features
+integration/models.py
 
-Correlation score
-Confidence weighting
-Relationship strength
-Rule-based scoring
-Score normalization
-2.10.9 Incident Builder
+Models
 
-Description
+IntegrationResult
+PipelineStageResult
+PipelineMetrics
+4.7 End-to-End Live Flow Test
 
-Convert correlated events into structured security incidents.
+Create a realistic telemetry sequence:
 
-Features
+PROCESS_CREATE
+FILE_CREATE
+REGISTRY_MODIFY
+NETWORK_CONNECT
 
-Incident creation
-Event aggregation
-Severity aggregation
-Confidence aggregation
-Incident metadata
-2.10.10 Correlation Engine Tester
+Verify:
 
-Description
+all events accepted,
+dispatcher assigns correlation IDs,
+correlation links events,
+statistics counters increase,
+confidence result generated.
 
-Comprehensive integration and stress testing for the Correlation Engine.
+Create
 
-Features
+tests/test_integration_pipeline.py
+Suggested Folder Structure
+integration/
+├── __init__.py
+├── models.py
+├── file_integration.py
+├── process_integration.py
+├── network_integration.py
+├── registry_integration.py
+└── integration_pipeline.py
+Development Order (Important)
 
-Unit testing
-Integration testing
-Stress testing
-Fuzz testing
-Boundary testing
-Performance testing
-Memory testing
-Large attack-chain simulation
----
+Implement in this exact order:
 
-### 2.10 Correlation Engine
-
-* Correlation ID generation
-* Related event linking
-* Session grouping
-
----
-
-### 2.11 Statistics Engine
-
-* Update counters
-* Noise reduction
-* Duplicate count
-* Runtime metrics
-
----
-
-### 2.12 Master Filter Dispatcher
-
-* `filter_file()`
-* `filter_process()`
-* `filter_network()`
-* `filter_registry()`
-
----
-
-## Part 4 – Integration Layer
-
-* Connect File Monitor
-* Connect Process Monitor
-* Connect Network Monitor
-* Connect Registry Monitor
-
+integration/models.py
+integration/integration_pipeline.py
+file_integration.py
+process_integration.py
+network_integration.py
+registry_integration.py
+tests/test_integration_pipeline.py
 ---
 
 ## Part 5 – Testing
