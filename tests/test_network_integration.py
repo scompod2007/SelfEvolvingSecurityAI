@@ -40,6 +40,12 @@ def _make_unique_network_event() -> dict[str, Any]:
     cache, so tests must use distinct source port / connection
     combinations to avoid colliding with events processed by other tests
     in this suite.
+
+    The destination port is fixed at 54321, a confirmed non-whitelisted,
+    non-ignored port (see filters/whitelist.py TRUSTED_PORTS and
+    filters/filter_rules.py IGNORE_PORTS), so this fixture represents a
+    normal accepted network event rather than legitimately whitelisted
+    traffic such as port 443 (HTTPS).
     """
     src_port = _next_port()
     unique_process = f"test_{uuid.uuid4().hex}.exe"
@@ -53,9 +59,9 @@ def _make_unique_network_event() -> dict[str, Any]:
         "local_ip": "10.0.0.15",
         "src_port": src_port,
         "source_port": src_port,
-        "dst_port": 443,
-        "destination_port": 443,
-        "remote_port": 443,
+        "dst_port": 54321,
+        "destination_port": 54321,
+        "remote_port": 54321,
         "local_port": src_port,
         "protocol": "TCP",
         "transport": "TCP",
